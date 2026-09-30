@@ -13,6 +13,10 @@ def strip_html(text):
     """Retire les balises HTML et normalise les espaces."""
     if not text:
         return None
+    if isinstance(text, dict):
+        text = text.get("fr") or next(iter(text.values()), None)
+        if not text:
+            return None
     text = re.sub(r"\s+", " ", TAGS.sub(" ", str(text))).strip()
     return text or None
 
@@ -27,7 +31,7 @@ def clean_event(ev: dict) -> dict:
         "description": strip_html(ev.get("longDescription") or ev.get("description")),
         "date_start": dates[0] if dates else None,
         "city": loc.get("city"),
-        "department": loc.get("department"),
+        "department": loc.get("adminLevel2"),
         "latitude": (loc.get("coordinates") or {}).get("lat"),
         "longitude": (loc.get("coordinates") or {}).get("lon"),
         "url": ev.get("canonicalUrl") or ev.get("slug"),

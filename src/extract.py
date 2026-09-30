@@ -10,22 +10,46 @@ from config import OPENAGENDA_API, OPENAGENDA_KEY, RAW_FILE, DEPARTEMENTS, HISTO
 def fetch_events() -> list[dict]:
     now = datetime.now(timezone.utc)
     events, skip = [], 0
+
     while True:
         params = {
-            "key": OPENAGENDA_KEY, "lang": "fr", "size": 100, "skip": skip,
-            "search[passed]": 1,
-            "search[timings][from]": (now - timedelta(days=HISTORY_DAYS)).strftime("%Y-%m-%d"),
-            "search[timings][to]": (now + timedelta(days=FUTURE_DAYS)).strftime("%Y-%m-%d"),
-            "search[department][]": DEPARTEMENTS,
+            "monolingual": "fr",
+            "size": 300,
+            "from": skip,
+            "timings[gte]": (
+                now - timedelta(days=HISTORY_DAYS)
+            ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "timings[lte]": (
+                now + timedelta(days=FUTURE_DAYS)
+            ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "adminLevel2[]": DEPARTEMENTS,
         }
-        data = requests.get(OPENAGENDA_API, params=params, timeout=30).json()
-        page = data.get("events") or []
-        events += page
-        total = data.get("pagination", {}).get("total", len(events))
+
+        response = requests.get(
+            OPENAGENDA_API,
+            headers={"key": OPENAGENDA_KEY},
+            params=params,
+            timeout=30,
+        )
+        if not response.ok:
+            raise RuntimeError(
+                f"OpenAgenda HTTP {response.status_code}: {response.text}"
+            )
+
+        data = response.json()
+        if "events" not in data:
+            raise RuntimeError(f"Réponse OpenAgenda inattendue : {data}")
+
+        page = data["events"]
+        events.extend(page)
+
+        total = data.get("total", len(events))
         print(f"[extract] {len(events)} / {total}")
+
         if not page or len(events) >= total:
             return events
-        skip += 100
+
+        skip += len(page)
         time.sleep(0.1)
 
 

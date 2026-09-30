@@ -11,7 +11,10 @@ from config import EMBED_FILE, RAW_FILE, CLEAN_FILE
 def main():
     # 1. Extraction
     RAW_FILE.parent.mkdir(parents=True, exist_ok=True)
-    RAW_FILE.write_text(json.dumps(extract.fetch_events(), ensure_ascii=False), encoding="utf-8")
+    events = extract.fetch_events()
+    if not events:
+        raise RuntimeError("OpenAgenda n'a retourné aucun événement.")
+    RAW_FILE.write_text(json.dumps(events, ensure_ascii=False), encoding="utf-8")
 
     # 2. Nettoyage
     clean.CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)

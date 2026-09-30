@@ -4,7 +4,13 @@ from pathlib import Path
 OPENAGENDA_KEY = os.environ["OPENAGENDA_KEY"]
 MISTRAL_KEY = os.environ["MISTRAL_API_KEY"]
 
-DEPARTEMENTS = ["22", "29", "35", "56", "44"]
+DEPARTEMENTS = [
+	"Côtes-d'Armor",
+	"Finistère",
+	"Ille-et-Vilaine",
+	"Morbihan",
+	"Loire-Atlantique",
+]
 HISTORY_DAYS = 365   
 FUTURE_DAYS = 365
 
