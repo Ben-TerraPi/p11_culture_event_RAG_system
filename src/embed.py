@@ -5,10 +5,15 @@ from config import MISTRAL_KEY, EMBED_URL, EMBED_MODEL, EMBED_BATCH, CLEAN_FILE,
 
 
 def text_for_embedding(row) -> str:
-    """Texte composite vectorisé : titre + description + lieu."""
-    return " ".join(filter(None, [
-        row["title"], row["description"], row["city"], row["department"],
-    ]))[:8000]  # 8k tokens max
+    """Texte utile à la recherche sémantique d'un événement."""
+    fields = [
+        row["title"], row["description"], row["keywords"], row["venue"],
+        row["address"], row["city"], row["department"], row["date_start"],
+    ]
+    return " ".join(
+        str(value) for value in fields
+        if value is not None and not pd.isna(value)
+    )[:8000]  # 8k caractères maximum
 
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:

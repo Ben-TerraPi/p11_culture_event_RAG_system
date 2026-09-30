@@ -29,10 +29,12 @@ def clean_event(ev: dict) -> dict:
     timings = ev.get("timings") or []
     dates = sorted(t.get("begin") for t in timings if t.get("begin"))
     next_begin = (ev.get("nextTiming") or {}).get("begin")
+    next_end = (ev.get("nextTiming") or {}).get("end")
     if next_begin:
         dates = [next_begin]
     elif not dates and (ev.get("firstTiming") or {}).get("begin"):
         dates = [ev["firstTiming"]["begin"]]
+    date_end = next_end or (ev.get("lastTiming") or {}).get("end")
 
     image = ev.get("image")
     if isinstance(image, dict):
@@ -48,8 +50,12 @@ def clean_event(ev: dict) -> dict:
         "title": strip_html(ev.get("title")),
         "description": strip_html(ev.get("longDescription") or ev.get("description")),
         "date_start": dates[0] if dates else None,
+        "date_end": date_end,
         "city": loc.get("city"),
         "department": loc.get("adminLevel2"),
+        "venue": strip_html(loc.get("name")),
+        "address": strip_html(loc.get("address")),
+        "keywords": ", ".join(str(keyword) for keyword in (ev.get("keywords") or [])),
         "latitude": loc.get("latitude") or (loc.get("coordinates") or {}).get("lat"),
         "longitude": loc.get("longitude") or (loc.get("coordinates") or {}).get("lon"),
         "url": ev.get("canonicalUrl") or ev.get("slug"),
@@ -59,8 +65,9 @@ def clean_event(ev: dict) -> dict:
 
 def build_dataset(raw_events: list[dict]) -> pd.DataFrame:
     columns = [
-        "event_id", "title", "description", "date_start", "city",
-        "department", "latitude", "longitude", "url", "image", "is_upcoming",
+        "event_id", "title", "description", "date_start", "date_end", "city",
+        "department", "venue", "address", "keywords", "latitude", "longitude",
+        "url", "image", "is_upcoming",
     ]
     if not raw_events:
         return pd.DataFrame(columns=columns)
