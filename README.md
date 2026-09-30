@@ -42,8 +42,8 @@ pip install -r requirements.txt
 Créez un fichier `.env` à la racine du projet avec le contenu suivant :
 
 ```
-MISTRAL_API_KEY=clé_api_mistral
-OPENAGENDA_KEY==clé_api_openAgenda
+MISTRAL_API_KEY=votre_cle_mistral
+OPENAGENDA_KEY==votre_cle_openagenda
 ```
 
 ## Structure du projet
