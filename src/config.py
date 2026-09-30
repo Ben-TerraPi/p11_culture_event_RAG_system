@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 OPENAGENDA_KEY = os.environ["OPENAGENDA_KEY"]
 MISTRAL_KEY = os.environ["MISTRAL_API_KEY"]
 

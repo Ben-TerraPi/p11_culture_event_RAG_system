@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import datetime, timezone
+from html import unescape
 
 import pandas as pd
 
@@ -17,7 +18,8 @@ def strip_html(text):
         text = text.get("fr") or next(iter(text.values()), None)
         if not text:
             return None
-    text = re.sub(r"\s+", " ", TAGS.sub(" ", str(text))).strip()
+    text = unescape(str(text))
+    text = re.sub(r"\s+", " ", TAGS.sub(" ", text)).strip()
     return text or None
 
 
@@ -40,6 +42,13 @@ def clean_event(ev: dict) -> dict:
 
 
 def build_dataset(raw_events: list[dict]) -> pd.DataFrame:
+    columns = [
+        "event_id", "title", "description", "date_start", "city",
+        "department", "latitude", "longitude", "url", "image", "is_upcoming",
+    ]
+    if not raw_events:
+        return pd.DataFrame(columns=columns)
+
     df = pd.DataFrame([clean_event(e) for e in raw_events])
     df = df[df["event_id"].ne("") & df["date_start"].notna()]
     df = df.drop_duplicates(subset=["event_id", "date_start"])
