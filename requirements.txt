@@ -3,3 +3,5 @@ langchain==1.4.3
 mistral==23.0.0
 pandas==3.0.6
 pyarrow==25.0.1
+python-dotenv==1.2.3
+requests==2.34.2
