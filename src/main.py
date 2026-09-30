@@ -11,10 +11,10 @@ from config import EMBED_FILE, RAW_FILE, CLEAN_FILE
 def main():
     # 1. Extraction
     RAW_FILE.parent.mkdir(parents=True, exist_ok=True)
-    events = extract.fetch_events()
-    if not events:
-        raise RuntimeError("OpenAgenda n'a retourné aucun événement.")
-    RAW_FILE.write_text(json.dumps(events, ensure_ascii=False), encoding="utf-8")
+    agendas = extract.fetch_agendas()
+    if not agendas:
+        raise RuntimeError("OpenAgenda n'a retourné aucun agenda.")
+    RAW_FILE.write_text(json.dumps(agendas, ensure_ascii=False), encoding="utf-8")
 
     # 2. Nettoyage
     clean.CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -27,9 +27,8 @@ def main():
     df.to_parquet(EMBED_FILE, index=False)
 
     # Bilan
-    print(f"\nTotal : {len(df)} | Historique : {(~df.is_upcoming).sum()} "
-          f"| À venir : {df.is_upcoming.sum()}")
-    print(df["department"].value_counts(dropna=False))
+    print(f"\nTotal agendas : {len(df)}")
+    print(f"Agendas officiels : {df['official'].fillna(False).sum()}")
 
 
 if __name__ == "__main__":

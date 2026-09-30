@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -21,35 +20,45 @@ def strip_html(text):
     return text or None
 
 
-def clean_event(ev: dict) -> dict:
-    """Projette un événement brut vers le schéma cible."""
-    loc = ev.get("location") or {}
-    dates = sorted(t.get("begin") for t in (ev.get("timings") or []) if t.get("begin"))
+def clean_agenda(agenda: dict) -> dict:
+    """Projette un agenda brut vers le schéma cible."""
+    summary = agenda.get("summary") or {}
+    published = summary.get("publishedEvents") or {}
     return {
-        "event_id": str(ev.get("uid") or ""),
-        "title": strip_html(ev.get("title")),
-        "description": strip_html(ev.get("longDescription") or ev.get("description")),
-        "date_start": dates[0] if dates else None,
-        "city": loc.get("city"),
-        "department": loc.get("adminLevel2"),
-        "latitude": (loc.get("coordinates") or {}).get("lat"),
-        "longitude": (loc.get("coordinates") or {}).get("lon"),
-        "url": ev.get("canonicalUrl") or ev.get("slug"),
-        "image": ev.get("image"),
+        "agenda_id": str(agenda.get("uid") or ""),
+        "title": strip_html(agenda.get("title")),
+        "description": strip_html(agenda.get("description")),
+        "slug": agenda.get("slug"),
+        "url": agenda.get("url"),
+        "official": agenda.get("official"),
+        "private": agenda.get("private"),
+        "indexed": agenda.get("indexed"),
+        "image": agenda.get("image"),
+        "keywords": ", ".join(summary.get("keywords") or []),
+        "published_current": published.get("current", 0),
+        "published_passed": published.get("passed", 0),
+        "published_upcoming": published.get("upcoming", 0),
     }
 
 
-def build_dataset(raw_events: list[dict]) -> pd.DataFrame:
-    df = pd.DataFrame([clean_event(e) for e in raw_events])
-    df = df[df["event_id"].ne("") & df["date_start"].notna()]
-    df = df.drop_duplicates(subset=["event_id", "date_start"])
-    df["is_upcoming"] = df["date_start"].str[:10] >= datetime.now(timezone.utc).strftime("%Y-%m-%d")
+def build_dataset(raw_agendas: list[dict]) -> pd.DataFrame:
+    columns = [
+        "agenda_id", "title", "description", "slug", "url", "official",
+        "private", "indexed", "image", "keywords", "published_current",
+        "published_passed", "published_upcoming",
+    ]
+    if not raw_agendas:
+        return pd.DataFrame(columns=columns)
+
+    df = pd.DataFrame([clean_agenda(agenda) for agenda in raw_agendas])
+    df = df[df["agenda_id"].ne("")]
+    df = df.drop_duplicates(subset=["agenda_id"])
     return df
 
 
 if __name__ == "__main__":
-    events = json.loads(RAW_FILE.read_text(encoding="utf-8"))
-    df = build_dataset(events)
+    agendas = json.loads(RAW_FILE.read_text(encoding="utf-8"))
+    df = build_dataset(agendas)
     CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(CLEAN_FILE, index=False)
-    print(f"[clean] {len(df)} événements -> {CLEAN_FILE}")
+    print(f"[clean] {len(df)} agendas -> {CLEAN_FILE}")

@@ -11,15 +11,13 @@ DEPARTEMENTS = [
 	"Morbihan",
 	"Loire-Atlantique",
 ]
-HISTORY_DAYS = 365   
-FUTURE_DAYS = 365
 
-OPENAGENDA_API = "https://api.openagenda.com/v2/events"
+OPENAGENDA_API = "https://api.openagenda.com/v2/agendas"
 EMBED_URL = "https://api.mistral.ai/v1/embeddings"
 EMBED_MODEL = "mistral-embed"
 EMBED_BATCH = 64
 
 DATA = Path("data")
-RAW_FILE = DATA / "raw" / "events.json"
-CLEAN_FILE = DATA / "clean" / "events.parquet"
-EMBED_FILE = DATA / "embedded" / "events.parquet"
+RAW_FILE = DATA / "raw" / "agendas.json"
+CLEAN_FILE = DATA / "clean" / "agendas.parquet"
+EMBED_FILE = DATA / "embedded" / "agendas.parquet"
