@@ -1,42 +1,57 @@
 import json
-from datetime import timedelta
+import time
 
 import requests
 
-from config import (
-    EXPORT_API,
-    DEPARTEMENTS,
-    RAW_FILE,
-    WINDOW_END,
-    WINDOW_START,
-)
+from config import DEPARTEMENTS, OPENAGENDA_API, OPENAGENDA_KEY, RAW_FILE
 
 
-def fetch_events() -> list[dict]:
-    where = "location_department in (" + ", ".join(
-        f'"{department}"' for department in DEPARTEMENTS
-    ) + ") AND " + (
-        f'firstdate_begin >= "{WINDOW_START.isoformat()}T00:00:00+00:00" '
-        f'AND firstdate_begin < "{(WINDOW_END + timedelta(days=1)).isoformat()}T00:00:00+00:00"'
-    )
+def fetch_agendas() -> list[dict]:
+    agendas = {}
 
-    response = requests.get(
-        EXPORT_API,
-        params={"lang": "fr", "where": where},
-        timeout=120,
-    )
-    response.raise_for_status()
-    data = response.json()
-    events = data.get("results") if isinstance(data, dict) else data
+    for department in DEPARTEMENTS:
+        after = None
 
-    if not isinstance(events, list):
-        raise RuntimeError(f"Réponse OpenDataSoft inattendue : {data}")
+        while True:
+            params = {
+                "search": department,
+                "size": 100,
+                "sort": "recentlyAddedEvents.desc",
+            }
+            if after:
+                params["after[]"] = after
 
-    print(f"[extract] {len(events)} événements récupérés")
-    return events
+            response = requests.get(
+                OPENAGENDA_API,
+                headers={"key": OPENAGENDA_KEY},
+                params=params,
+                timeout=30,
+            )
+            if not response.ok:
+                raise RuntimeError(
+                    f"OpenAgenda HTTP {response.status_code}: {response.text}"
+                )
+
+            data = response.json()
+            page = data.get("agendas")
+            if page is None:
+                raise RuntimeError(f"Réponse OpenAgenda inattendue : {data}")
+
+            for agenda in page:
+                if agenda.get("uid") is not None:
+                    agendas[agenda["uid"]] = agenda
+
+            print(f"[extract] {department}: {len(agendas)} agendas uniques")
+            after = data.get("after")
+            if not after:
+                break
+
+            time.sleep(0.1)
+
+    return list(agendas.values())
 
 
 if __name__ == "__main__":
     RAW_FILE.parent.mkdir(parents=True, exist_ok=True)
-    RAW_FILE.write_text(json.dumps(fetch_events(), ensure_ascii=False), encoding="utf-8")
-    print(f"[extract] événements sauvegardés : {RAW_FILE}")
+    RAW_FILE.write_text(json.dumps(fetch_agendas(), ensure_ascii=False), encoding="utf-8")
+    print(f"[extract] agendas sauvegardés : {RAW_FILE}")

@@ -1,10 +1,9 @@
 import json
 import re
-from html import unescape
 
 import pandas as pd
 
-from config import CLEAN_FILE, RAW_FILE, REFERENCE_DATE, WINDOW_END, WINDOW_START
+from config import RAW_FILE, CLEAN_FILE
 
 TAGS = re.compile(r"<[^>]+>")
 
@@ -17,62 +16,49 @@ def strip_html(text):
         text = text.get("fr") or next(iter(text.values()), None)
         if not text:
             return None
-    text = unescape(str(text))
-    text = re.sub(r"\s+", " ", TAGS.sub(" ", text)).strip()
+    text = re.sub(r"\s+", " ", TAGS.sub(" ", str(text))).strip()
     return text or None
 
 
-def clean_event(event: dict) -> dict:
-    """Projette un événement du dump vers le schéma cible."""
-    keywords = event.get("keywords_fr") or []
-    if isinstance(keywords, str):
-        keywords = [keywords]
+def clean_agenda(agenda: dict) -> dict:
+    """Projette un agenda brut vers le schéma cible."""
+    summary = agenda.get("summary") or {}
+    published = summary.get("publishedEvents") or {}
     return {
-        "event_id": str(event.get("uid") or ""),
-        "agenda_id": str(event.get("originagenda_uid") or ""),
-        "agenda_title": event.get("originagenda_title"),
-        "title": strip_html(event.get("title_fr")),
-        "description": strip_html(
-            event.get("longdescription_fr") or event.get("description_fr")
-        ),
-        "date_start": event.get("firstdate_begin"),
-        "city": event.get("location_city"),
-        "department": event.get("location_department"),
-        "latitude": (event.get("location_coordinates") or {}).get("lat"),
-        "longitude": (event.get("location_coordinates") or {}).get("lon"),
-        "url": event.get("canonicalurl"),
-        "image": event.get("image"),
-        "keywords": ", ".join(str(keyword) for keyword in keywords),
+        "agenda_id": str(agenda.get("uid") or ""),
+        "title": strip_html(agenda.get("title")),
+        "description": strip_html(agenda.get("description")),
+        "slug": agenda.get("slug"),
+        "url": agenda.get("url"),
+        "official": agenda.get("official"),
+        "private": agenda.get("private"),
+        "indexed": agenda.get("indexed"),
+        "image": agenda.get("image"),
+        "keywords": ", ".join(summary.get("keywords") or []),
+        "published_current": published.get("current", 0),
+        "published_passed": published.get("passed", 0),
+        "published_upcoming": published.get("upcoming", 0),
     }
 
 
-def build_dataset(raw_events: list[dict]) -> pd.DataFrame:
+def build_dataset(raw_agendas: list[dict]) -> pd.DataFrame:
     columns = [
-        "event_id", "agenda_id", "agenda_title", "title", "description",
-        "date_start", "city", "department", "latitude", "longitude", "url",
-        "image", "keywords", "is_upcoming",
+        "agenda_id", "title", "description", "slug", "url", "official",
+        "private", "indexed", "image", "keywords", "published_current",
+        "published_passed", "published_upcoming",
     ]
-    if not raw_events:
+    if not raw_agendas:
         return pd.DataFrame(columns=columns)
 
-    df = pd.DataFrame([clean_event(event) for event in raw_events])
-    df = df[df["event_id"].ne("") & df["date_start"].notna()]
-    df = df.drop_duplicates(subset=["event_id", "date_start"])
-    dates = pd.to_datetime(df["date_start"], utc=True, errors="coerce")
-    window = (
-        dates.notna()
-        & (dates >= pd.Timestamp(WINDOW_START, tz="UTC"))
-        & (dates < pd.Timestamp(WINDOW_END + pd.Timedelta(days=1), tz="UTC"))
-    )
-    df = df[window]
-    dates = dates[window]
-    df["is_upcoming"] = dates >= pd.Timestamp(REFERENCE_DATE, tz="UTC")
+    df = pd.DataFrame([clean_agenda(agenda) for agenda in raw_agendas])
+    df = df[df["agenda_id"].ne("")]
+    df = df.drop_duplicates(subset=["agenda_id"])
     return df
 
 
 if __name__ == "__main__":
-    events = json.loads(RAW_FILE.read_text(encoding="utf-8"))
-    df = build_dataset(events)
+    agendas = json.loads(RAW_FILE.read_text(encoding="utf-8"))
+    df = build_dataset(agendas)
     CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(CLEAN_FILE, index=False)
-    print(f"[clean] {len(df)} événements -> {CLEAN_FILE}")
+    print(f"[clean] {len(df)} agendas -> {CLEAN_FILE}")
