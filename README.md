@@ -7,6 +7,7 @@ Ce projet implémente un assistant virtuel basé sur le modèle Mistral, utilisa
 
 - Python 3.13+ 
 - Clé API Mistral (obtenue sur [console.mistral.ai](https://console.mistral.ai/))
+- Clé API OpenAgenda (obtenue sur [Openagenda Documentation API](https://developers.openagenda.com/))
 
 ## Installation
 
