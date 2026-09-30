@@ -1,3 +1,4 @@
 faiss-cpu==1.15.1
 langchain==1.4.3
 mistral==23.0.0
+pandas==3.0.6
