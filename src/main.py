@@ -1,7 +1,10 @@
+import json
+import pandas as pd
+
 import extract
 import clean
 import embed
-import pandas as pd
+
 from config import EMBED_FILE, RAW_FILE, CLEAN_FILE
 
 
@@ -11,7 +14,6 @@ def main():
     RAW_FILE.write_text(json.dumps(extract.fetch_events(), ensure_ascii=False), encoding="utf-8")
 
     # 2. Nettoyage
-    import json
     clean.CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
     clean.build_dataset(json.loads(RAW_FILE.read_text(encoding="utf-8"))) \
          .to_parquet(CLEAN_FILE, index=False)
