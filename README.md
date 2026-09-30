@@ -6,9 +6,9 @@ Ce projet implémente un assistant virtuel basé sur le modèle Mistral, utilisa
 ## Prérequis
 
 - Python 3.13+ 
-- Clé API Mistral (obtenue sur [console.mistral.ai](https://console.mistral.ai/))
-- Clé API OpenAgenda (obtenue sur [Openagenda Documentation API](https://developers.openagenda.com/))
-- [Dataset public opendatasoft](https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records/?lang=fr&limit=10&offset=0)
+- Clé API Mistral [console.mistral.ai](https://console.mistral.ai/))
+- Clé API OpenAgenda* [Openagenda Documentation API](https://developers.openagenda.com/))
+*avec accès béta [lecture transverse](https://developers.openagenda.com/evenements/lecture/#lecture-transverse)
 
 ## Installation
 
@@ -44,7 +44,7 @@ Créez un fichier `.env` à la racine du projet avec le contenu suivant :
 
 ```
 MISTRAL_API_KEY="votre_cle_mistral"
-OPENAGENDA_KEY="votre_cle_openagenda"
+OPENAGENDA_KEY="votre_cle_openagenda" 
 ```
 
 ## Structure du projet
@@ -58,7 +58,7 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 │   ├── extract.py           # téléchargement API OpenAgenda (brut → data/raw/)
 │   ├── clean.py             # nettoyage, dédoublonnage → data/clean/
 │   ├── embed.py             # vectorisation Mistral → data/embedded/
-│   ├── index.py             # chargement dans la base vectorielle
+│   ├── 
 │   ├── main.py              # orchestration du pipeline
 │   └── 
 ├── README.md
