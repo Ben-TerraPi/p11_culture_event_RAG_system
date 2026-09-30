@@ -37,13 +37,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Configurer la clé API**
+4. **Configurer les clé API**
 
 Créez un fichier `.env` à la racine du projet avec le contenu suivant :
 
 ```
-MISTRAL_API_KEY=votre_cle_mistral
-OPENAGENDA_KEY==votre_cle_openagenda
+MISTRAL_API_KEY="votre_cle_mistral"
+OPENAGENDA_KEY="votre_cle_openagenda"
 ```
 
 ## Structure du projet
