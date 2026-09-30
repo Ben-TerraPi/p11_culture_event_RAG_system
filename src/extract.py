@@ -1,57 +1,59 @@
 import json
 import time
+from datetime import datetime, timedelta, timezone
 
 import requests
 
-from config import DEPARTEMENTS, OPENAGENDA_API, OPENAGENDA_KEY, RAW_FILE
+from config import OPENAGENDA_API, OPENAGENDA_KEY, RAW_FILE, DEPARTEMENTS, HISTORY_DAYS, FUTURE_DAYS
 
 
-def fetch_agendas() -> list[dict]:
-    agendas = {}
+def fetch_events() -> list[dict]:
+    now = datetime.now(timezone.utc)
+    events, skip = [], 0
 
-    for department in DEPARTEMENTS:
-        after = None
+    while True:
+        params = {
+            "monolingual": "fr",
+            "size": 300,
+            "from": skip,
+            "timings[gte]": (
+                now - timedelta(days=HISTORY_DAYS)
+            ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "timings[lte]": (
+                now + timedelta(days=FUTURE_DAYS)
+            ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "adminLevel2[]": DEPARTEMENTS,
+        }
 
-        while True:
-            params = {
-                "search": department,
-                "size": 100,
-                "sort": "recentlyAddedEvents.desc",
-            }
-            if after:
-                params["after[]"] = after
-
-            response = requests.get(
-                OPENAGENDA_API,
-                headers={"key": OPENAGENDA_KEY},
-                params=params,
-                timeout=30,
+        response = requests.get(
+            OPENAGENDA_API,
+            headers={"key": OPENAGENDA_KEY},
+            params=params,
+            timeout=30,
+        )
+        if not response.ok:
+            raise RuntimeError(
+                f"OpenAgenda HTTP {response.status_code}: {response.text}"
             )
-            if not response.ok:
-                raise RuntimeError(
-                    f"OpenAgenda HTTP {response.status_code}: {response.text}"
-                )
 
-            data = response.json()
-            page = data.get("agendas")
-            if page is None:
-                raise RuntimeError(f"Réponse OpenAgenda inattendue : {data}")
+        data = response.json()
+        if "events" not in data:
+            raise RuntimeError(f"Réponse OpenAgenda inattendue : {data}")
 
-            for agenda in page:
-                if agenda.get("uid") is not None:
-                    agendas[agenda["uid"]] = agenda
+        page = data["events"]
+        events.extend(page)
 
-            print(f"[extract] {department}: {len(agendas)} agendas uniques")
-            after = data.get("after")
-            if not after:
-                break
+        total = data.get("total", len(events))
+        print(f"[extract] {len(events)} / {total}")
 
-            time.sleep(0.1)
+        if not page or len(events) >= total:
+            return events
 
-    return list(agendas.values())
+        skip += len(page)
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
     RAW_FILE.parent.mkdir(parents=True, exist_ok=True)
-    RAW_FILE.write_text(json.dumps(fetch_agendas(), ensure_ascii=False), encoding="utf-8")
-    print(f"[extract] agendas sauvegardés : {RAW_FILE}")
+    RAW_FILE.write_text(json.dumps(fetch_events(), ensure_ascii=False), encoding="utf-8")
+    print(f"[extract] sauvegardé : {RAW_FILE}")

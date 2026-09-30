@@ -5,9 +5,9 @@ from config import MISTRAL_KEY, EMBED_URL, EMBED_MODEL, EMBED_BATCH, CLEAN_FILE,
 
 
 def text_for_embedding(row) -> str:
-    """Texte composite vectorisé : titre, description et mots-clés."""
+    """Texte composite vectorisé : titre + description + lieu."""
     return " ".join(filter(None, [
-        row["title"], row["description"], row["keywords"],
+        row["title"], row["description"], row["city"], row["department"],
     ]))[:8000]  # 8k tokens max
 
 
@@ -41,4 +41,4 @@ if __name__ == "__main__":
     df = add_embeddings(df)
     EMBED_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(EMBED_FILE, index=False)
-    print(f"[embed] {df['embedding'].notna().sum()} agendas vectorisés -> {EMBED_FILE}")
+    print(f"[embed] {df['embedding'].notna().sum()} vectorisés -> {EMBED_FILE}")
