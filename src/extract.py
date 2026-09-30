@@ -9,13 +9,12 @@ from config import OPENAGENDA_API, OPENAGENDA_KEY, RAW_FILE, DEPARTEMENTS, HISTO
 
 def fetch_events() -> list[dict]:
     now = datetime.now(timezone.utc)
-    events, skip = [], 0
+    events, after = [], None
 
     while True:
         params = {
             "monolingual": "fr",
             "size": 300,
-            "from": skip,
             "timings[gte]": (
                 now - timedelta(days=HISTORY_DAYS)
             ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
@@ -24,6 +23,8 @@ def fetch_events() -> list[dict]:
             ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "adminLevel2[]": DEPARTEMENTS,
         }
+        if after:
+            params["after[]"] = after
 
         response = requests.get(
             OPENAGENDA_API,
@@ -46,10 +47,10 @@ def fetch_events() -> list[dict]:
         total = data.get("total", len(events))
         print(f"[extract] {len(events)} / {total}")
 
-        if not page or len(events) >= total:
+        after = data.get("after")
+        if not page or not after:
             return events
 
-        skip += len(page)
         time.sleep(0.1)
 
 
