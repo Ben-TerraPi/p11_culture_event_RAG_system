@@ -5,10 +5,15 @@ from config import MISTRAL_KEY, EMBED_URL, EMBED_MODEL, EMBED_BATCH, CLEAN_FILE,
 
 
 def text_for_embedding(row) -> str:
-    """Texte composite vectorisé : titre, description et mots-clés."""
-    return " ".join(filter(None, [
-        row["title"], row["description"], row["keywords"],
-    ]))[:8000]  # 8k tokens max
+    """Texte composite vectorisé : événement, agenda, lieu et mots-clés."""
+    values = [
+        row["title"], row["description"], row["agenda_title"], row["city"],
+        row["department"], row["keywords"],
+    ]
+    return " ".join(
+        str(value) for value in values
+        if pd.notna(value) and str(value).strip()
+    )[:8000]  # 8k tokens max
 
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
@@ -41,4 +46,4 @@ if __name__ == "__main__":
     df = add_embeddings(df)
     EMBED_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(EMBED_FILE, index=False)
-    print(f"[embed] {df['embedding'].notna().sum()} agendas vectorisés -> {EMBED_FILE}")
+    print(f"[embed] {df['embedding'].notna().sum()} événements vectorisés -> {EMBED_FILE}")
