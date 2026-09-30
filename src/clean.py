@@ -26,7 +26,23 @@ def strip_html(text):
 def clean_event(ev: dict) -> dict:
     """Projette un événement brut vers le schéma cible."""
     loc = ev.get("location") or {}
-    dates = sorted(t.get("begin") for t in (ev.get("timings") or []) if t.get("begin"))
+    timings = ev.get("timings") or []
+    dates = sorted(t.get("begin") for t in timings if t.get("begin"))
+    next_begin = (ev.get("nextTiming") or {}).get("begin")
+    if next_begin:
+        dates = [next_begin]
+    elif not dates and (ev.get("firstTiming") or {}).get("begin"):
+        dates = [ev["firstTiming"]["begin"]]
+
+    image = ev.get("image")
+    if isinstance(image, dict):
+        filename = next(
+            (variant.get("filename") for variant in image.get("variants", [])
+             if variant.get("type") == "full"),
+            image.get("filename"),
+        )
+        image = f"https://img.openagenda.com/main/{filename}" if filename else None
+
     return {
         "event_id": str(ev.get("uid") or ""),
         "title": strip_html(ev.get("title")),
@@ -34,10 +50,10 @@ def clean_event(ev: dict) -> dict:
         "date_start": dates[0] if dates else None,
         "city": loc.get("city"),
         "department": loc.get("adminLevel2"),
-        "latitude": (loc.get("coordinates") or {}).get("lat"),
-        "longitude": (loc.get("coordinates") or {}).get("lon"),
+        "latitude": loc.get("latitude") or (loc.get("coordinates") or {}).get("lat"),
+        "longitude": loc.get("longitude") or (loc.get("coordinates") or {}).get("lon"),
         "url": ev.get("canonicalUrl") or ev.get("slug"),
-        "image": ev.get("image"),
+        "image": image,
     }
 
 

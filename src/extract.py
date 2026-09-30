@@ -14,6 +14,9 @@ def fetch_events() -> list[dict]:
     while True:
         params = {
             "monolingual": "fr",
+            "detailed": 1,
+            "includeLabels": 1,
+            "longDescriptionFormat": "html",
             "size": 300,
             "timings[gte]": (
                 now - timedelta(days=HISTORY_DAYS)
