@@ -25,6 +25,8 @@ def fetch_events() -> list[dict]:
                 now + timedelta(days=FUTURE_DAYS)
             ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "adminLevel2[]": DEPARTEMENTS,
+            "search":"Concert",
+            "threshold": "auto",
         }
         if after:
             params["after[]"] = after
