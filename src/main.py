@@ -4,8 +4,9 @@ import pandas as pd
 import extract
 import clean
 import embed
+import vector_store
 
-from config import EMBED_FILE, RAW_FILE, CLEAN_FILE
+from config import EMBED_FILE, RAW_FILE, CLEAN_FILE, FAISS_FILE, METADATA_FILE
 
 
 def main():
@@ -23,12 +24,19 @@ def main():
 
     # 3. Vectorisation
     embed.EMBED_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df = embed.add_embeddings(pd.read_parquet(CLEAN_FILE))
+    df = embed.chunk_dataset(pd.read_parquet(CLEAN_FILE))
+    df = embed.add_embeddings(df)
     df.to_parquet(EMBED_FILE, index=False)
+
+    # 4. Indexation sémantique
+    indexed = vector_store.build_index(df, FAISS_FILE, METADATA_FILE)
+    if indexed != len(df):
+        raise RuntimeError(f"{len(df) - indexed} chunks n'ont pas été indexés.")
 
     # Bilan
     print(f"\nTotal : {len(df)} | Historique : {(~df.is_upcoming).sum()} "
           f"| À venir : {df.is_upcoming.sum()}")
+    print(f"Chunks indexés : {indexed} -> {FAISS_FILE}")
     print(df["department"].value_counts(dropna=False))
 
 
