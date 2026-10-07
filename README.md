@@ -52,7 +52,7 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 ```
 .
 ├── data/                           
-│   ├── raw/  clean/  embedded/     # sorties (gitigné)
+│   ├── raw/  clean/  embedded/     # sorties (ignorées par Git)
 │   └── evaluation/
 │       └── questions.jsonl         # jeu de questions
 ├── src/
@@ -89,7 +89,7 @@ La collecte couvre les cinq départements définis dans `src/config.py` et une f
 
 ## Exécution du chatbot
 
-Après ajout de `src/rag.py` et `src/chat.py`, puis reconstruction de l’index, lancer l’interface conversationnelle :
+Après reconstruction de l’index, lancer l’interface conversationnelle :
 
 ```bash
 python src/chat.py
@@ -97,7 +97,14 @@ python src/chat.py
 
 Le chatbot recherche les chunks pertinents dans FAISS, transmet leur contexte au modèle Mistral via LangChain et répond en français. Il doit rester factuel, ne pas inventer d’événement et indiquer lorsqu’aucun résultat fiable n’est disponible. L’historique n’est pas utilisé dans ce POC.
 
-Une utilisation programmatique suit le même principe :
+Une utilisation programmatique suit le même principe. Depuis la racine du projet, rendre `src` accessible dans `PYTHONPATH` avant l'import :
+
+```powershell
+$env:PYTHONPATH = "src"
+python -c "from rag import answer; print(answer('Quels concerts sont proposés à Rennes ?'))"
+```
+
+Dans un script placé dans `src/`, l'appel se présente ainsi :
 
 ```python
 from rag import answer
