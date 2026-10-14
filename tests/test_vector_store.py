@@ -1,9 +1,3 @@
-"""Tests de l'index FAISS : cohérence index/métadonnées et qualité de la recherche.
-
-- Tests « synthétiques » : index construit à la volée, sans clé API.
-- Tests « base réelle » : ignorés tant que `python src/main.py` n'a pas été lancé.
-"""
-
 import faiss
 import numpy as np
 import pandas as pd

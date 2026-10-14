@@ -1,8 +1,4 @@
-"""Tests unitaires du pipeline, sans base ni appel API (données synthétiques)."""
-
 from datetime import date
-
-import pytest
 
 import clean
 import embed

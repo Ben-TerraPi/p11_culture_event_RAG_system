@@ -1,16 +1,11 @@
-"""Vérifie que la base vectorielle ne contient que des événements conformes.
-
-Prérequis : avoir construit la base avec `python src/main.py`.
-"""
-
 from datetime import datetime, timedelta, timezone
 
 import faiss
 import pandas as pd
 import pytest
 
-from clean import ALLOWED_DEPARTMENTS, norm
-from config import FAISS_FILE, FUTURE_DAYS, HISTORY_DAYS, METADATA_FILE
+from src.clean import ALLOWED_DEPARTMENTS, norm
+from src.config import FAISS_FILE, FUTURE_DAYS, HISTORY_DAYS, METADATA_FILE
 
 
 @pytest.fixture(scope="module")
