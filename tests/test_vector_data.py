@@ -1,53 +1,51 @@
-from datetime import timedelta
-from pathlib import Path
+"""Vérifie que la base vectorielle ne contient que des événements conformes.
+
+Prérequis : avoir construit la base avec `python src/main.py`.
+"""
+
+from datetime import datetime, timedelta, timezone
 
 import faiss
 import pandas as pd
 import pytest
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-VECTOR_STORE = PROJECT_ROOT / "data" / "vector_store"
-FAISS_FILE = VECTOR_STORE / "events.faiss"
-METADATA_FILE = VECTOR_STORE / "metadata.parquet"
-
-EXPECTED_DEPARTMENTS = {
-	"Côtes-d'Armor",
-	"Finistère",
-	"Ille-et-Vilaine",
-	"Morbihan",
-	"Loire-Atlantique",
-}
+from clean import ALLOWED_DEPARTMENTS, norm
+from config import FAISS_FILE, FUTURE_DAYS, HISTORY_DAYS, METADATA_FILE
 
 
 @pytest.fixture(scope="module")
 def vector_data():
-	if not FAISS_FILE.exists() or not METADATA_FILE.exists():
-		pytest.skip(
-			"Index FAISS absent : exécutez `python src/main.py` avant ce test."
-		)
+    if not FAISS_FILE.exists() or not METADATA_FILE.exists():
+        pytest.skip("Index FAISS absent : exécutez `python src/main.py` avant ce test.")
 
-	index = faiss.read_index(str(FAISS_FILE))
-	metadata = pd.read_parquet(METADATA_FILE)
-	return index, metadata
+    index = faiss.read_index(str(FAISS_FILE))
+    metadata = pd.read_parquet(METADATA_FILE)
+    return index, metadata
 
 
 def test_metadata_matches_faiss_index(vector_data):
-	index, metadata = vector_data
+    index, metadata = vector_data
 
-	assert index.ntotal > 0
-	assert len(metadata) == index.ntotal
-	assert metadata["event_id"].notna().all()
-	assert metadata["title"].notna().all()
-	assert metadata["date_start"].notna().all()
+    assert index.ntotal > 0
+    assert len(metadata) == index.ntotal
+    assert metadata["event_id"].notna().all()
+    assert metadata["title"].notna().all()
+    assert metadata["date_start"].notna().all()
 
 
 def test_events_are_in_expected_departments_and_date_window(vector_data):
-	_, metadata = vector_data
-	dates = pd.to_datetime(metadata["date_start"], utc=True, errors="coerce")
-	today = pd.Timestamp.now(tz="UTC").normalize()
+    _, metadata = vector_data
+    dates = pd.to_datetime(metadata["date_start"], utc=True, errors="coerce")
 
-	assert dates.notna().all(), "Toutes les dates doivent être valides."
-	assert set(metadata["department"].dropna()).issubset(EXPECTED_DEPARTMENTS)
-	assert (dates >= today - timedelta(days=365)).all()
-	assert (dates <= today + timedelta(days=365)).all()
+    # La fenêtre « 1 an » est relative à la construction de la base, pas à
+    # aujourd'hui : sinon le test échoue dès que la base vieillit.
+    built = pd.Timestamp(
+        datetime.fromtimestamp(METADATA_FILE.stat().st_mtime, timezone.utc)
+    ).normalize()
+    slack = timedelta(days=1)  # écart fuseau horaire (jour local vs UTC)
+
+    assert dates.notna().all(), "Toutes les dates doivent être valides."
+    assert metadata["department"].notna().all(), "Chaque événement doit avoir un département."
+    assert set(metadata["department"].map(norm)) <= ALLOWED_DEPARTMENTS
+    assert (dates >= built - timedelta(days=HISTORY_DAYS) - slack).all()
+    assert (dates <= built + timedelta(days=FUTURE_DAYS) + slack).all()
