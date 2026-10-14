@@ -1,87 +1,106 @@
-import json
 import re
-from datetime import datetime, timezone
+import unicodedata
+from datetime import date, datetime, timedelta, timezone
 from html import unescape
 
 import pandas as pd
 
-from config import RAW_FILE, CLEAN_FILE
+from config import DEPARTEMENTS, FUTURE_DAYS, HISTORY_DAYS
 
-TAGS = re.compile(r"<[^>]+>")
+COLUMNS = [
+    "event_id", "title", "description", "date_start", "date_end", "city",
+    "department", "venue", "address", "url", "is_upcoming",
+]
 
 
-def strip_html(text):
+def norm(text) -> str:
+    """Normalise un texte pour les comparaisons (accents, casse, apostrophes)."""
+    text = unicodedata.normalize("NFKD", str(text or ""))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return text.replace("’", "'").casefold().strip()
+
+
+ALLOWED_DEPARTMENTS = {norm(d) for d in DEPARTEMENTS}
+
+
+def strip_html(text) -> str | None:
     """Retire les balises HTML et normalise les espaces."""
     if not text:
         return None
-    if isinstance(text, dict):
-        text = text.get("fr") or next(iter(text.values()), None)
-        if not text:
-            return None
-    text = unescape(str(text))
-    text = re.sub(r"\s+", " ", TAGS.sub(" ", text)).strip()
-    return text or None
+    text = re.sub(r"<[^>]+>", " ", unescape(str(text)))
+    return " ".join(text.split()) or None
 
 
-def clean_event(ev: dict) -> dict:
-    """Projette un événement brut vers le schéma cible."""
+def pick_timing(ev: dict, start: str, end: str, today: str) -> dict | None:
+    """Choisit le créneau à retenir parmi ceux situés DANS la fenêtre.
+
+    `timings` contient tous les créneaux de l'événement, même hors fenêtre :
+    on garde le prochain créneau à venir, sinon le plus récent du passé.
+    """
+    timings = [t for t in ev.get("timings") or [] if t.get("begin")]
+    in_window = [t for t in timings if start <= t["begin"][:10] <= end]
+    upcoming = [t for t in in_window if t["begin"][:10] >= today]
+    if upcoming:
+        return min(upcoming, key=lambda t: t["begin"])
+    if in_window:
+        return max(in_window, key=lambda t: t["begin"])
+    return None
+
+
+def clean_event(ev: dict, start: str, end: str, today: str) -> dict | None:
+    """Convertit un événement brut vers le schéma cible (None s'il est hors fenêtre)."""
+    timing = pick_timing(ev, start, end, today)
+    if timing is None or not ev.get("uid"):
+        return None
+
     loc = ev.get("location") or {}
-    timings = ev.get("timings") or []
-    dates = sorted(t.get("begin") for t in timings if t.get("begin"))
-    next_begin = (ev.get("nextTiming") or {}).get("begin")
-    next_end = (ev.get("nextTiming") or {}).get("end")
-    if next_begin:
-        dates = [next_begin]
-    elif not dates and (ev.get("firstTiming") or {}).get("begin"):
-        dates = [ev["firstTiming"]["begin"]]
-    date_end = next_end or (ev.get("lastTiming") or {}).get("end")
-
-    image = ev.get("image")
-    if isinstance(image, dict):
-        filename = next(
-            (variant.get("filename") for variant in image.get("variants", [])
-             if variant.get("type") == "full"),
-            image.get("filename"),
-        )
-        image = f"https://img.openagenda.com/main/{filename}" if filename else None
-
     return {
-        "event_id": str(ev.get("uid") or ""),
+        "event_id": str(ev["uid"]),
         "title": strip_html(ev.get("title")),
         "description": strip_html(ev.get("longDescription") or ev.get("description")),
-        "date_start": dates[0] if dates else None,
-        "date_end": date_end,
+        "date_start": timing["begin"],
+        "date_end": timing.get("end"),
         "city": loc.get("city"),
         "department": loc.get("adminLevel2"),
         "venue": strip_html(loc.get("name")),
         "address": strip_html(loc.get("address")),
-        "keywords": ", ".join(str(keyword) for keyword in (ev.get("keywords") or [])),
-        "latitude": loc.get("latitude") or (loc.get("coordinates") or {}).get("lat"),
-        "longitude": loc.get("longitude") or (loc.get("coordinates") or {}).get("lon"),
-        "url": ev.get("canonicalUrl") or ev.get("slug"),
-        "image": image,
+        "url": ev.get("canonicalUrl"),
+        "is_upcoming": timing["begin"][:10] >= today,
     }
 
 
-def build_dataset(raw_events: list[dict]) -> pd.DataFrame:
-    columns = [
-        "event_id", "title", "description", "date_start", "date_end", "city",
-        "department", "venue", "address", "keywords", "latitude", "longitude",
-        "url", "image", "is_upcoming",
-    ]
-    if not raw_events:
-        return pd.DataFrame(columns=columns)
+def build_dataset(raw_events: list[dict], today: date | None = None) -> pd.DataFrame:
+    """Un événement par ligne, dans la fenêtre de dates et les départements choisis."""
+    today = today or datetime.now(timezone.utc).date()
+    start = (today - timedelta(days=HISTORY_DAYS)).isoformat()
+    end = (today + timedelta(days=FUTURE_DAYS)).isoformat()
 
-    df = pd.DataFrame([clean_event(e) for e in raw_events])
-    df = df[df["event_id"].ne("") & df["date_start"].notna()]
-    df = df.drop_duplicates(subset=["event_id", "date_start"])
-    df["is_upcoming"] = df["date_start"].str[:10] >= datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return df
+    rows = [clean_event(ev, start, end, today.isoformat()) for ev in raw_events]
+    df = pd.DataFrame([row for row in rows if row], columns=COLUMNS)
+    df = df.drop_duplicates("event_id")
+    df = df[df["department"].map(norm).isin(ALLOWED_DEPARTMENTS)]
+    return df.reset_index(drop=True)
 
 
-if __name__ == "__main__":
-    events = json.loads(RAW_FILE.read_text(encoding="utf-8"))
-    df = build_dataset(events)
-    CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(CLEAN_FILE, index=False)
-    print(f"[clean] {len(df)} événements -> {CLEAN_FILE}")
+def check_dataset(df: pd.DataFrame, today: date | None = None, slack_days: int = 1) -> list[str]:
+    """Renvoie la liste des problèmes (vide si le jeu de données est conforme).
+
+    `slack_days` absorbe l'écart de fuseau horaire entre jour local et UTC.
+    """
+    if df.empty:
+        return ["jeu de données vide"]
+
+    today = today or datetime.now(timezone.utc).date()
+    oldest = (today - timedelta(days=HISTORY_DAYS + slack_days)).isoformat()
+    latest = (today + timedelta(days=FUTURE_DAYS + slack_days)).isoformat()
+    starts = df["date_start"].astype(str).str[:10]
+
+    checks = {
+        f"événements de plus de {HISTORY_DAYS} jours": starts < oldest,
+        "événements trop lointains": starts > latest,
+        "événements hors des départements choisis":
+            ~df["department"].map(norm).isin(ALLOWED_DEPARTMENTS),
+        "dates manquantes": df["date_start"].isna(),
+        "titres manquants": df["title"].isna(),
+    }
+    return [f"{int(bad.sum())} {label}" for label, bad in checks.items() if bad.any()]
