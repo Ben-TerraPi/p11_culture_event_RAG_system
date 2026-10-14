@@ -1,103 +1,87 @@
-import requests
 import pandas as pd
+import requests
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from api_utils import with_retry
 from config import (
-    MISTRAL_KEY, EMBED_URL, EMBED_MODEL, EMBED_BATCH, CLEAN_FILE, EMBED_FILE,
-    CHUNK_SIZE, CHUNK_OVERLAP,
+    CHUNK_OVERLAP, CHUNK_SIZE, EMBED_BATCH, EMBED_MODEL, EMBED_URL, MISTRAL_KEY, require,
 )
 
+splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
 
-def chunk_text(text: str, size: int = CHUNK_SIZE,
-               overlap: int = CHUNK_OVERLAP) -> list[str]:
-    """Découpe un texte en morceaux de longueur limitée."""
-    if not text or pd.isna(text):
-        return []
-    if size <= 0 or overlap < 0 or overlap >= size:
-        raise ValueError("size doit être supérieur à overlap >= 0")
 
-    text = " ".join(str(text).split())
-    if not text:
-        return []
-
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = min(start + size, len(text))
-        if end < len(text) and text[end] != " ":
-            end = text.find(" ", end)
-            if end == -1:
-                end = len(text)
-
-        chunks.append(text[start:end].strip())
-        if end == len(text):
-            break
-        start = end - overlap
-        if overlap:
-            next_space = text.find(" ", start)
-            start = next_space + 1 if next_space != -1 else end
-    return chunks
+def chunk_text(text) -> list[str]:
+    """Découpe un texte en chunks de CHUNK_SIZE caractères maximum."""
+    return splitter.split_text(text) if isinstance(text, str) else []
 
 
 def chunk_dataset(df: pd.DataFrame) -> pd.DataFrame:
-    """Crée une ligne par chunk tout en conservant les métadonnées événement."""
+    """Une ligne par chunk, avec toutes les métadonnées de l'événement."""
     rows = []
-    for _, row in df.iterrows():
-        description = row.get("description")
-        source = description if isinstance(description, str) and description.strip() else row.get("title")
-        chunks = chunk_text(source)
-        for chunk_number, chunk in enumerate(chunks):
-            item = row.to_dict()
-            item["chunk_id"] = f"{item['event_id']}_{chunk_number}"
-            item["chunk_number"] = chunk_number
-            item["chunk_text"] = chunk
-            rows.append(item)
+    for _, event in df.iterrows():
+        text = event["description"] if isinstance(event["description"], str) else event["title"]
+        for number, chunk in enumerate(chunk_text(text)):
+            rows.append({
+                **event.to_dict(),
+                "chunk_id": f"{event['event_id']}_{number}",
+                "chunk_number": number,
+                "chunk_text": chunk,
+            })
     return pd.DataFrame(rows)
 
 
+def event_header(row) -> str:
+    """Titre, lieu, département et date, ajoutés à chaque chunk avant vectorisation.
+
+    Sans cet en-tête, le vecteur ne contient ni la ville ni la date de l'événement.
+    """
+    place = ", ".join(str(row.get(k)) for k in ("venue", "city") if pd.notna(row.get(k)))
+    start = row.get("date_start")
+    fields = {
+        "Titre": row.get("title"),
+        "Lieu": place,
+        "Département": row.get("department"),
+        "Date": str(start)[:10] if pd.notna(start) else None,
+    }
+    return " | ".join(f"{label} : {value}" for label, value in fields.items()
+                      if pd.notna(value) and value)
+
+
 def text_for_embedding(row) -> str:
-    """Texte utile à la recherche sémantique d'un événement."""
-    chunk = row.get("chunk_text")
-    if isinstance(chunk, str) and chunk.strip():
-        return chunk[:8000]
-    fields = [
-        row["title"], row["description"], row["keywords"], row["venue"],
-        row["address"], row["city"], row["department"], row["date_start"],
-    ]
-    return " ".join(
-        str(value) for value in fields
-        if value is not None and not pd.isna(value)
-    )[:8000]  # 8k caractères maximum
+    return f"{event_header(row)}\n{row['chunk_text']}"
+
+
+def _embed_batch(batch: list[str]) -> list[list[float]]:
+    key = require(MISTRAL_KEY, "MISTRAL_API_KEY")
+    response = requests.post(
+        EMBED_URL,
+        headers={"Authorization": f"Bearer {key}"},
+        json={"model": EMBED_MODEL, "input": batch},
+        timeout=60,
+    )
+    if not response.ok:
+        print(f"[embed] HTTP {response.status_code}: {response.text[:300]}")
+    response.raise_for_status()
+    data = sorted(response.json()["data"], key=lambda item: item["index"])
+    return [item["embedding"] for item in data]
 
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Embeddings mistral-embed par lots."""
-    headers = {"Authorization": f"Bearer {MISTRAL_KEY}"}
+    """Vectorise les textes par lots, avec cadence et réessais sur 429."""
+    show_progress = len(texts) > EMBED_BATCH
     vectors = []
     for i in range(0, len(texts), EMBED_BATCH):
         batch = texts[i:i + EMBED_BATCH]
-        resp = requests.post(EMBED_URL, headers=headers, timeout=60,
-                             json={"model": EMBED_MODEL, "input": batch})
-        resp.raise_for_status()
-        vectors.extend(d["embedding"] for d in resp.json()["data"])
-        print(f"[embed] {len(vectors)} / {len(texts)}")
+        vectors += with_retry(lambda: _embed_batch(batch))
+        if show_progress:
+            print(f"\r[embed] {len(vectors)} / {len(texts)}", end="", flush=True)
+    if show_progress:
+        print()
     return vectors
 
 
 def add_embeddings(df: pd.DataFrame) -> pd.DataFrame:
-    """Ajoute la colonne embedding (null si texte vide)."""
-    texts = df.apply(text_for_embedding, axis=1)
-    df["embedding"] = None
-    mask = texts.ne("")
-    df.loc[mask, "embedding"] = pd.Series(
-        get_embeddings(texts[mask].tolist()), index=df.index[mask]
-    ).apply(list)
+    """Ajoute la colonne `embedding` (un vecteur par chunk)."""
+    df = df.copy()
+    df["embedding"] = get_embeddings([text_for_embedding(row) for _, row in df.iterrows()])
     return df
-
-
-if __name__ == "__main__":
-    df = pd.read_parquet(CLEAN_FILE)
-    df = chunk_dataset(df)
-    df = add_embeddings(df)
-    EMBED_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(EMBED_FILE, index=False)
-    print(f"[embed] {df['embedding'].notna().sum()} vectorisés -> {EMBED_FILE}")
