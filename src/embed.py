@@ -60,7 +60,7 @@ def _embed_batch(batch: list[str]) -> list[list[float]]:
         timeout=60,
     )
     if not response.ok:
-        print(f"[embed] HTTP {response.status_code}: {response.text[:300]}")
+        print(f"\n[embed] HTTP {response.status_code}: {response.text[:300]}")
     response.raise_for_status()
     data = sorted(response.json()["data"], key=lambda item: item["index"])
     return [item["embedding"] for item in data]
