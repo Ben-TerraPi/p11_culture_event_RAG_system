@@ -1,5 +1,4 @@
-"""Construction et interrogation de l'index vectoriel FAISS."""
-
+from functools import lru_cache
 from pathlib import Path
 
 import faiss
@@ -9,40 +8,46 @@ import pandas as pd
 from embed import get_embeddings
 
 
-def _normalise(vectors: np.ndarray) -> np.ndarray:
-    vectors = np.asarray(vectors, dtype="float32")
+def _normalise(vectors) -> np.ndarray:
+    """Normalise les vecteurs : le produit scalaire devient la similarité cosinus."""
+    vectors = np.ascontiguousarray(vectors, dtype="float32")
     faiss.normalize_L2(vectors)
     return vectors
 
 
-def build_index(df: pd.DataFrame, index_file: Path,
-                metadata_file: Path) -> int:
-    """Construit un index cosine et persiste ses métadonnées dans le même ordre."""
-    valid = df[df["embedding"].notna()].copy().reset_index(drop=True)
-    if valid.empty:
+def build_index(df: pd.DataFrame, index_file: Path, metadata_file: Path) -> int:
+    """Indexe les embeddings et enregistre les métadonnées dans le même ordre."""
+    if df.empty:
         raise ValueError("Aucun embedding disponible pour construire l'index FAISS.")
 
-    vectors = _normalise(np.asarray(valid["embedding"].tolist(), dtype="float32"))
+    vectors = _normalise(df["embedding"].tolist())
     index = faiss.IndexFlatIP(vectors.shape[1])
     index.add(vectors)
 
-    index_file.parent.mkdir(parents=True, exist_ok=True)
-    metadata_file.parent.mkdir(parents=True, exist_ok=True)
+    for file in (index_file, metadata_file):
+        file.parent.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(index_file))
-    valid.drop(columns=["embedding"]).to_parquet(metadata_file, index=False)
+    df.drop(columns=["embedding"]).to_parquet(metadata_file, index=False)
     return index.ntotal
 
 
-def search(query: str, index_file: Path, metadata_file: Path,
-           limit: int = 5) -> pd.DataFrame:
-    """Recherche les chunks les plus proches et renvoie score + métadonnées."""
-    if limit < 1:
-        raise ValueError("limit doit être supérieur ou égal à 1.")
-    index = faiss.read_index(str(index_file))
-    metadata = pd.read_parquet(metadata_file)
-    query_vector = _normalise(np.asarray(get_embeddings([query]), dtype="float32"))
-    scores, positions = index.search(query_vector, min(limit, index.ntotal))
+@lru_cache(maxsize=2)
+def _load(index_file: str, metadata_file: str):
+    return faiss.read_index(index_file), pd.read_parquet(metadata_file)
 
-    results = metadata.iloc[positions[0]].copy().reset_index(drop=True)
+
+def search(query: str, index_file: Path, metadata_file: Path) -> pd.DataFrame:
+    """Classe tous les chunks par similarité avec la question (colonne `score`).
+
+    L'index est exhaustif : le filtrage par date ou par lieu se fait ensuite
+    sur les métadonnées (voir rag.retrieve).
+    """
+    if not (index_file.exists() and metadata_file.exists()):
+        raise FileNotFoundError("Base vectorielle absente : lancez `python src/main.py`.")
+
+    index, metadata = _load(str(index_file), str(metadata_file))
+    scores, positions = index.search(_normalise(get_embeddings([query])), index.ntotal)
+
+    results = metadata.iloc[positions[0]].reset_index(drop=True)
     results.insert(0, "score", scores[0])
     return results
