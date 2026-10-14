@@ -34,6 +34,7 @@ EMBED_URL = "https://api.mistral.ai/v1/embeddings"
 EMBED_MODEL = "mistral-embed"
 EMBED_BATCH = 16          # petits lots : l'API limite les tokens par requête
 MISTRAL_CHAT_MODEL = "mistral-small-latest"
+CHAT_MAX_RETRIES = 1      # les retries sont gérés par api_utils
 MIN_INTERVAL = 1.1        # secondes entre deux appels (palier gratuit ~1 req/s)
 MAX_RETRIES = 5
 
