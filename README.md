@@ -57,7 +57,7 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 │       └── questions.jsonl         # jeu de questions annoté
 ├── src/
 │   ├── api_utils.py                # cadence des appels + réessais sur 429/5xx
-│   ├── chat.py                     # chatbot en ligne de commande
+│   ├── chat.py                     # interface chatbot Streamlit
 │   ├── clean.py                    # nettoyage, fenêtre de dates, contrôle qualité → data/clean/
 │   ├── config.py                   # clés, constantes (départements, période, modèles, seuils)
 │   ├── embed.py                    # chunking + embeddings
@@ -104,11 +104,10 @@ Une erreur 429 ou 403 peut aussi signaler un modèle de chat non autorisé pour 
 Après reconstruction de l'index, lancer l'interface conversationnelle :
 
 ```bash
-python src/chat.py                 # événements à venir uniquement
-python src/chat.py --include-past  # inclut aussi les événements passés
+streamlit run src/chat.py
 ```
 
-Le chatbot recherche les chunks pertinents dans FAISS, ne garde qu'un extrait par événement au-dessus d'un seuil de pertinence grossier (`MIN_SCORE`), transmet ce contexte au modèle Mistral via LangChain et répond en français. Il doit rester factuel, ne pas inventer d'événement et indiquer lorsqu'aucun résultat fiable n'est disponible. L'historique n'est pas utilisé dans ce POC.
+Le chatbot recherche les chunks pertinents dans FAISS, ne garde qu'un extrait par événement au-dessus d'un seuil de pertinence grossier (`MIN_SCORE`), transmet ce contexte au modèle Mistral via LangChain et répond en français. Il doit rester factuel, ne pas inventer d'événement et indiquer lorsqu'aucun résultat fiable n'est disponible. L'historique est conservé dans l'interface pendant la session, mais chaque question est traitée indépendamment par le RAG.
 
 Une utilisation programmatique suit le même principe. Depuis la racine du projet, rendre `src` accessible dans `PYTHONPATH` avant l'import :
 

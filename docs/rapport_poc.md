@@ -34,7 +34,7 @@ Le pipeline actuel est organisé en cinq étapes :
 L'état évalué contient **1 633 événements**, dont **493 à venir** et **1 140
 passés**, répartis sur **2 179 chunks**. Ces données ont été extraites le
 **14 octobre 2026** à partir de l'API officielle OpenAgenda avec une vraie clé
-API disposant du rôle ajouté « lecture transverse » permettant de lister les événements récents et à venir publiés sur des agendas publiques indexés sur OpenAgenda suite à un contact avec le support ; elles ne proviennent donc pas du
+API disposant du rôle « lecture transverse » ; elles ne proviennent donc pas du
 dataset statique OpenAgenda du 8 avril 2024 fourni comme support dans l'exercice.
 Le jeu d'évaluation comporte 12
 questions, dont 8 avec un événement attendu. Le système récupère l'identifiant
@@ -112,7 +112,7 @@ et la phase **online** de réponse :
 
 - `src/main.py` orchestre la collecte, le nettoyage, la vectorisation et
   l'indexation ;
-- `src/chat.py` fournit une interface en ligne de commande ;
+- `src/chat.py` fournit une interface conversationnelle Streamlit ;
 - `src/rag.py` regroupe la récupération et la génération ;
 - `src/vector_store.py` encapsule FAISS et l'alignement entre vecteurs et
   métadonnées.
@@ -129,7 +129,7 @@ questions.
 autorisée par le rôle complémentaire **« lecture transverse »**. Ce rôle permet
 de lister les événements récents et à venir publiés sur des agendas publics
 indexés sur OpenAgenda. Une authentification en lecture ou par jeton d'accès est
-requise pour cette route.
+requise pour cette route après contact avec le support.
 
 La requête demande une réponse en français, une description détaillée, les cinq
 départements, une fenêtre de ±365 jours et la recherche « Concert ». La
