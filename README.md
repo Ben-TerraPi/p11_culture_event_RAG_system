@@ -5,10 +5,10 @@ Ce projet collecte des événements culturels OpenAgenda, les nettoie, les vecto
 
 ## Prérequis
 
-- Python 3.13+ 
-- Clé API Mistral [console.mistral.ai](https://console.mistral.ai/))
-- Clé API OpenAgenda* [Openagenda Documentation API](https://developers.openagenda.com/))
-*avec accès béta [lecture transverse](https://developers.openagenda.com/evenements/lecture/#lecture-transverse)
+- Python 3.13+
+- Clé API Mistral [console.mistral.ai](https://console.mistral.ai/)
+- Clé API OpenAgenda [documentation de l'API OpenAgenda](https://developers.openagenda.com/),
+  avec accès bêta à la [lecture transverse](https://developers.openagenda.com/evenements/lecture/#lecture-transverse)
 
 ## Installation
 
@@ -70,9 +70,11 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 │   ├── test_pipeline_units.py      # nettoyage, chunking (sans clé ni base)
 │   ├── test_vector_data.py         # conformité de la base (dates, départements)
 │   └── test_vector_store.py        # cohérence et recherche de l'index FAISS
-├── .env.example
 ├── pytest.ini
 ├── README.md
+├── FONCTIONNEMENT.md
+├── docs/
+│   └── rapport_poc.md
 └── requirements.txt
 ```
 
@@ -91,7 +93,9 @@ data/vector_store/events.faiss
 data/vector_store/metadata.parquet
 ```
 
-La collecte couvre les cinq départements définis dans `src/config.py` (Côtes-d'Armor, Finistère, Ille-et-Vilaine, Morbihan, Loire-Atlantique) et une fenêtre de 365 jours dans le passé et dans le futur : un an d'historique plus les événements à venir. Pour chaque événement, un seul créneau est conservé, toujours situé dans cette fenêtre (le prochain à venir, sinon le plus récent). Le nettoyage s'arrête avec une erreur si une date ou un département est hors périmètre. Les fichiers générés dans `data/` ne doivent pas être versionnés.
+La collecte couvre les cinq départements définis dans `src/config.py` (Côtes-d'Armor, Finistère, Ille-et-Vilaine, Morbihan, Loire-Atlantique) et une fenêtre de 365 jours dans le passé et dans le futur : un an d'historique plus les événements à venir. Pour chaque événement, un seul créneau est conservé, toujours situé dans cette fenêtre (le prochain à venir, sinon le plus récent). Le nettoyage s'arrête avec une erreur si une date ou un département est hors périmètre. Les fichiers générés dans `data/` ne doivent pas être versionnés. Le dépôt contient
+également [FONCTIONNEMENT.md](FONCTIONNEMENT.md) pour la description détaillée du
+pipeline et [docs/rapport_poc.md](docs/rapport_poc.md) pour les résultats du POC.
 
 ### Limites de l'API Mistral (erreurs 429)
 

@@ -214,7 +214,7 @@ la dégradation du service.
 | Recherche vectorielle | FAISS `IndexFlatIP` | Simple, local, déterministe et suffisant pour quelques milliers de chunks |
 | Orchestration RAG | LangChain | Intégration rapide du prompt, du modèle et du parser |
 | Modèle génératif | `open-mistral-nemo` | Modèle autorisé sur la clé du POC, coût et latence compatibles |
-| Interface | CLI Python | Surface minimale pour valider le parcours de bout en bout |
+| Interface | Streamlit (`src/chat.py`) | Interface conversationnelle du POC |
 
 ### 4.1 Pourquoi une recherche vectorielle locale ?
 

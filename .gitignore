@@ -1,7 +1,6 @@
 data/*
 !data/evaluation/
 !data/evaluation/questions.jsonl
-FONCTIONNEMENT.md
 .pytest-tmp
 
 # Byte-compiled / optimized / DLL files
