@@ -22,9 +22,8 @@ flowchart LR
     D --> E[Dataset Parquet nettoyé]
     E --> F[Découpage en chunks]
     F --> G[Embeddings mistral-embed]
-    G --> H[Dataset Parquet vectorisé]
-    G --> I[Index FAISS]
-    H --> J[Métadonnées Parquet]
+    G --> H[Index FAISS]
+    G --> I[Métadonnées Parquet]
     I --> K[Recherche sémantique]
     J --> K
 ```
@@ -135,7 +134,8 @@ Le module `src/clean.py` transforme chaque événement OpenAgenda en un schéma 
 
 Les descriptions et certains champs textuels sont nettoyés : les balises HTML sont supprimées, les entités HTML sont décodées et les espaces sont normalisés.
 
-Les événements sans identifiant ou sans date de début sont écartés. Les doublons sont supprimés avec la combinaison `event_id` et `date_start`.
+Les événements sans identifiant ou sans créneau dans la fenêtre sont écartés.
+Les doublons sont supprimés sur `event_id`.
 
 La colonne `is_upcoming` indique si la date de début est aujourd'hui ou ultérieure.
 
@@ -161,7 +161,9 @@ Chaque morceau reçoit un identifiant de la forme :
 <event_id>_<numero_du_chunk>
 ```
 
-Le texte est envoyé à l'API Mistral par lots de 64 éléments avec le modèle `mistral-embed`. Les embeddings sont stockés dans la colonne `embedding`.
+Le texte est envoyé à l'API Mistral par lots de 16 éléments avec le modèle
+`mistral-embed`. Les embeddings sont stockés temporairement dans la colonne
+`embedding`.
 
 Le dataset vectorisé n'est pas persisté séparément. Les embeddings sont transmis
 directement à `vector_store.build_index`, qui écrit uniquement l'index FAISS et
@@ -169,7 +171,8 @@ les métadonnées sans la colonne `embedding`.
 
 ## Étape 4 : indexation FAISS
 
-Le module `src/vector_store.py` ignore les lignes dépourvues d'embedding, convertit les vecteurs en `float32`, puis les normalise avec `faiss.normalize_L2`.
+Le module `src/vector_store.py` convertit les vecteurs en `float32`, puis les
+normalise avec `faiss.normalize_L2`. Un jeu vide provoque une erreur explicite.
 
 L'index utilisé est `faiss.IndexFlatIP`. Après normalisation, le produit scalaire correspond à une similarité cosinus.
 
@@ -197,7 +200,6 @@ results = vector_store.search(
     query="concert de musique classique en Bretagne",
     index_file=Path("data/vector_store/events.faiss"),
     metadata_file=Path("data/vector_store/metadata.parquet"),
-    limit=5,
 )
 
 print(results[["score", "title", "city", "date_start", "url"]])
@@ -215,8 +217,12 @@ La fonction :
 
 Le module `src/rag.py` ajoute la génération de réponse au-dessus de la recherche vectorielle :
 
-1. `retrieve` appelle `vector_store.search` et récupère les trois chunks les plus proches pour le chatbot.
-2. Chaque résultat est converti en document LangChain contenant le titre, la date, la ville, le lieu, la description et l'URL.
+1. `retrieve` appelle `vector_store.search`, applique le seuil de score et les
+   filtres structurés, puis conserve au plus quatre événements distincts.
+   Une ville et une date précise ou un mois sont déduits automatiquement de la
+   question lorsqu'ils sont explicitement formulés.
+2. Chaque résultat est converti en document LangChain contenant le titre, la
+   date, la ville, le département, le lieu, l'extrait et l'URL.
 3. Un `ChatPromptTemplate` transmet les documents et la question au modèle de chat Mistral.
 4. `ChatMistralAI` utilise le modèle `open-mistral-nemo` avec une température nulle.
 5. `StrOutputParser` convertit la réponse du modèle en texte.

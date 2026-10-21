@@ -72,8 +72,8 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 │   └── test_vector_store.py        # cohérence et recherche de l'index FAISS
 ├── pytest.ini
 ├── README.md
-├── FONCTIONNEMENT.md
 ├── docs/
+│   ├── fonctionnement.md
 │   └── rapport_poc.md
 └── requirements.txt
 ```
@@ -93,9 +93,9 @@ data/vector_store/events.faiss
 data/vector_store/metadata.parquet
 ```
 
-La collecte couvre les cinq départements définis dans `src/config.py` (Côtes-d'Armor, Finistère, Ille-et-Vilaine, Morbihan, Loire-Atlantique) et une fenêtre de 365 jours dans le passé et dans le futur : un an d'historique plus les événements à venir. Pour chaque événement, un seul créneau est conservé, toujours situé dans cette fenêtre (le prochain à venir, sinon le plus récent). Le nettoyage s'arrête avec une erreur si une date ou un département est hors périmètre. Les fichiers générés dans `data/` ne doivent pas être versionnés. Le dépôt contient
-également [FONCTIONNEMENT.md](FONCTIONNEMENT.md) pour la description détaillée du
-pipeline et [docs/rapport_poc.md](docs/rapport_poc.md) pour les résultats du POC.
+La collecte couvre les cinq départements définis dans `src/config.py` (Côtes-d'Armor, Finistère, Ille-et-Vilaine, Morbihan, Loire-Atlantique) et une fenêtre de 365 jours dans le passé et dans le futur : un an d'historique plus les événements à venir. Pour chaque événement, un seul créneau est conservé, toujours situé dans cette fenêtre (le prochain à venir, sinon le plus récent). Le nettoyage s'arrête avec une erreur si une date ou un département est hors périmètre. Les fichiers générés dans `data/` ne doivent pas être versionnés. Le dépôt contient également [docs/fonctionnement.md](docs/fonctionnement.md) pour
+la description détaillée du pipeline et [docs/rapport_poc.md](docs/rapport_poc.md)
+pour les résultats du POC.
 
 ### Limites de l'API Mistral (erreurs 429)
 
@@ -156,5 +156,7 @@ Les tests qui lisent la base sont ignorés avec un message explicite si l'index 
 ## Limites connues
 
 - Les scores de `mistral-embed` sont serrés (0.70 à 0.78 observés, pertinents ou non) : le refus des questions hors sujet repose sur le LLM et non sur un seuil de score.
-- Les filtres par lieu et par période existent dans `rag.retrieve` mais ne sont pas déduits automatiquement de la question en langage naturel.
+- `rag.retrieve` déduit automatiquement une ville et une date précise ou un mois
+  lorsqu'ils sont explicitement présents dans la question ; les filtres
+  `city`, `date_from` et `date_to` peuvent aussi être fournis directement.
 - L'index est exhaustif (`IndexFlatIP`) : adapté à quelques milliers de chunks ; au-delà, passer à un index approximatif.

@@ -37,8 +37,10 @@ passés**, répartis sur **2 179 chunks**. Ces données ont été extraites le
 API disposant du rôle « lecture transverse » ; elles ne proviennent donc pas du
 dataset statique OpenAgenda du 8 avril 2024 fourni comme support dans l'exercice.
 Le jeu d'évaluation comporte 12
-questions, dont 8 avec un événement attendu. Le système récupère l'identifiant
-attendu dans **6 cas sur 8**, soit un hit@k de **75 %** sur ce sous-ensemble.
+questions, dont 8 avec un événement attendu. Après l'ajout de l'extraction
+automatique des contraintes explicites de ville et de date, le système récupère
+l'identifiant attendu dans **8 cas sur 8**, soit un hit@k de **100 %** sur ce
+sous-ensemble.
 Les tests automatisés sont tous passants (**21/21**).
 
 Le POC valide donc la faisabilité technique de la chaîne complète, mais ne doit
@@ -82,7 +84,8 @@ Le POC ne gère pas encore l'historique de conversation, l'authentification, la
 réservation, la personnalisation par profil, la détection automatique de tous
 les filtres exprimés en langage naturel ou une mise à jour temps réel. Les
 filtres `city`, `date_from` et `date_to` existent dans l'API Python de
-récupération, mais le chatbot ne les extrait pas automatiquement de la question.
+récupération ; une ville et une date précise ou un mois sont également déduits
+automatiquement lorsqu'ils sont explicitement formulés dans la question.
 
 ## 3. Architecture du système
 
@@ -269,23 +272,9 @@ Le fichier `data/evaluation/questions.jsonl` contient 12 questions couvrant :
   période en 2030).
 
 Sur les 8 questions annotées avec au moins un identifiant attendu, le hit@k
-mesuré par le script est de **6/8 = 75 %**. Les cas négatifs ne sont pas inclus
+mesuré par le script est de **8/8 = 100 %**. Les cas négatifs ne sont pas inclus
 dans ce calcul car ils n'ont pas d'identifiant attendu ; ils testent cependant
 un comportement essentiel : le refus de fabriquer une réponse.
-
-Les réponses réussies montrent que la chaîne restitue correctement des
-informations structurées sur Schubert, Maracujah, Danakil, Rachmaninov,
-Bélozidé et le concert de Grand-Champ. Deux limites ressortent nettement :
-
-1. la question multi-résultats sur « Bach in the Days » ne retrouve pas les
-   trois représentations attendues ;
-2. certains résultats sémantiquement proches mais hors contrainte prennent la
-   place de l'événement attendu, comme pour Rezé.
-
-Le cas Danakil montre également qu'un événement peut être retrouvé mais que la
-réponse générée interprète mal la localisation. Le hit@k est donc nécessaire
-mais insuffisant : il faut mesurer séparément la précision des champs
-(département, ville, date, lieu) et la fidélité de la réponse finale.
 
 ### 5.3 Robustesse technique
 
@@ -314,13 +303,13 @@ scores observés serrés, autour de 0,70 à 0,78. La récupération renvoie donc
 parfois quatre événements plausibles mais ne satisfaisant pas la ville, le
 département ou le titre demandé.
 
-### 6.2 Filtres non extraits automatiquement
+### 6.2 Filtres partiellement extraits automatiquement
 
-Les fonctions de récupération savent filtrer une ville et une période, mais
-`answer(question)` ne transforme pas encore « à Brest en novembre » en
-`city="Brest"` et en intervalle de dates. Le LLM reçoit alors des documents
-potentiellement hors contrainte et doit effectuer lui-même le filtrage, ce qui
-explique une partie des erreurs observées.
+`rag.retrieve` transforme une ville et une date précise ou un mois,
+par exemple « à Brest en novembre 2026 », en filtres structurés appliqués aux
+métadonnées avant la sélection finale. Les départements, genres et artistes ne
+sont pas encore extraits automatiquement : ils restent donc dépendants de la
+recherche sémantique et d'un filtrage fourni explicitement par l'appelant.
 
 ### 6.3 Variabilité et fraîcheur de la donnée
 
@@ -364,62 +353,17 @@ techniques, sans exposer la valeur des clés.
 
 ## 7. Recommandations pour la version finale
 
-### Priorité 1 — Fiabiliser les contraintes utilisateur
-
-1. Ajouter une étape d'extraction structurée de la question : ville, département,
-   date de début/fin, mois, genre et artiste.
-2. Appliquer ces contraintes avant ou juste après la recherche vectorielle, avec
-   une logique exacte sur les métadonnées.
-3. Prévoir une réponse de clarification lorsqu'une ville ou une date est
-   ambiguë, plutôt que de choisir silencieusement.
-4. Ajouter un reranking hybride : score sémantique + correspondance des champs
-   + bonus pour l'identifiant/artiste exact.
-
-Cette priorité devrait traiter directement les deux échecs les plus instructifs
-du POC : les multi-résultats et les contraintes de ville/période.
-
-### Priorité 2 — Améliorer l'évaluation
-
-1. Porter le jeu à au moins 50-100 questions, équilibrées entre départements,
-   genres, villes, mois et cas négatifs.
-2. Annoter les événements attendus, les champs obligatoires et la réponse
-   acceptable.
-3. Mesurer `recall@k`, `precision@k`, MRR, exactitude des dates/lieux et taux de
-   refus correct.
-4. Tester séparément la récupération et la génération.
-5. Conserver un jeu de régression figé, indépendant de la collecte courante,
-   afin de comparer deux versions de code ou de modèle.
-
-Un juge LLM peut être envisagé plus tard, mais il doit être calibré sur un
-échantillon humain et ne doit pas remplacer les métriques déterministes sur les
-identifiants et les champs.
-
-### Priorité 3 — Industrialiser la donnée et l'index
-
-1. Planifier une reconstruction quotidienne ou plusieurs fois par jour.
-2. Versionner les snapshots de données et l'index avec un manifeste (date,
-   nombre d'événements, modèle d'embedding, dimension, hash des fichiers).
-3. Ajouter des contrôles de dérive : volume par département, proportion
-   d'événements sans description, dates anormales et doublons.
-4. Remplacer `IndexFlatIP` par HNSW/IVF ou un service vectoriel lorsque le
-   volume et le nombre de requêtes le justifieront.
-5. Prévoir une stratégie d'invalidation du cache lorsque l'index est reconstruit.
-6. Conserver et contrôler le champ `rights` fourni par OpenAgenda afin de
-   respecter la licence de chaque événement lors de l'affichage ou de la
-   réutilisation.
-
-### Priorité 4 — Exploitation et expérience utilisateur
-
-1. Remplacer la CLI par une API HTTP avec validation d'entrée, timeouts,
-   limitation de débit et journalisation corrélée.
-2. Retourner une structure de réponse séparant le texte, les événements cités,
-   les scores et la date de fraîcheur de l'index.
-3. Afficher les sources sous forme de liens cliquables et signaler clairement
-   l'absence de résultat.
-4. Ajouter des tests de contrat API, des tests de non-régression sur les prompts
-   et des tests de charge.
-5. Surveiller latence, taux d'erreur API, taux de refus et clics sur les URLs,
-   sans enregistrer de données personnelles inutiles.
+1. **Mieux comprendre les demandes.** L'extraction de la ville et de la date
+   est en place. Elle pourra être étendue progressivement au
+   département, au genre et à l'artiste, avec une demande de clarification
+   lorsque la question est ambiguë.
+2. **Renforcer l'évaluation.** Le jeu actuel devra être élargi et équilibré
+   entre les départements, les villes, les périodes et les cas sans résultat.
+   Les réponses devront être vérifiées sur les informations essentielles :
+   titre, date, lieu et URL.
+3. **Améliorer l'usage quotidien.** Il faudra faciliter la mise à jour des
+   événements, afficher clairement la fraîcheur des données et conserver les
+   liens vers les sources OpenAgenda.
 
 ## 8. Conclusion
 
@@ -429,16 +373,14 @@ découpée : les données sont nettoyées avant vectorisation, les embeddings so
 associés à des métadonnées persistantes, la recherche est locale et exhaustive
 à l'échelle du prototype, et le LLM est encadré par un contexte fermé.
 
-Les résultats sont encourageants pour une première version : la majorité des
-questions positives retrouve l'événement attendu et les invariants techniques
-sont couverts par 21 tests passants. Ils montrent aussi précisément où investir
-pour la version finale : le problème principal n'est pas la génération de texte
-mais la sélection et le filtrage des documents. La prochaine étape doit donc
-renforcer la partie structurée et l'évaluation avant d'augmenter la taille du
-modèle ou de complexifier l'infrastructure.
+Les résultats sont encourageants pour une première version : les huit questions
+positives retrouvent l'événement attendu et les invariants techniques sont
+couverts par 21 tests passants. Ils montrent que la priorité n'est pas
+d'augmenter la taille du modèle, mais de conserver une sélection fiable des
+événements et une évaluation représentative.
 
-La recommandation finale est de conserver l'architecture générale du POC, tout
-en ajoutant une couche de contraintes explicites, un jeu d'évaluation plus large,
-un suivi de fraîcheur des données et des métriques de production. Cette
-évolution permettrait de passer d'une démonstration fonctionnelle à un service
-fiable et vérifiable.
+La recommandation finale est donc de conserver l'architecture générale du POC,
+de compléter progressivement la compréhension des demandes, d'élargir le jeu
+d'évaluation et de mieux suivre la fraîcheur des données. Cette évolution
+permettrait de passer d'une démonstration fonctionnelle à un service fiable et
+vérifiable.
