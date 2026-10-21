@@ -10,6 +10,7 @@ from src.config import FAISS_FILE, FUTURE_DAYS, HISTORY_DAYS, METADATA_FILE
 
 @pytest.fixture(scope="module")
 def vector_data():
+    """Charge l'index FAISS réel et ses métadonnées pour les tests d'intégrité."""
     if not FAISS_FILE.exists() or not METADATA_FILE.exists():
         pytest.skip("Index FAISS absent : exécutez `python src/main.py` avant ce test.")
 
@@ -19,6 +20,7 @@ def vector_data():
 
 
 def test_metadata_matches_faiss_index(vector_data):
+    """Vérifie la correspondance entre l'index et les champs essentiels."""
     index, metadata = vector_data
 
     assert index.ntotal > 0
@@ -29,6 +31,7 @@ def test_metadata_matches_faiss_index(vector_data):
 
 
 def test_events_are_in_expected_departments_and_date_window(vector_data):
+    """Vérifie les départements et la fenêtre temporelle de la base construite."""
     _, metadata = vector_data
     dates = pd.to_datetime(metadata["date_start"], utc=True, errors="coerce")
 
