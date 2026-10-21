@@ -91,24 +91,7 @@ automatiquement lorsqu'ils sont explicitement formulés dans la question.
 
 ### 3.1 Vue d'ensemble
 
-```mermaid
-flowchart LR
-    A[OpenAgenda API] --> B[extract.py]
-    B --> C[data/raw/agendas.json]
-    C --> D[clean.py]
-    D --> E[data/clean/agendas.parquet]
-    E --> F[Chunking 1000 / overlap 150]
-    F --> G[mistral-embed]
-    G --> H[FAISS IndexFlatIP]
-    G --> I[metadata.parquet]
-    Q[Question utilisateur] --> J[Embedding de la question]
-    J --> H
-    H --> K[Filtrage et dédoublonnage]
-    I --> K
-    K --> L[Contexte limité à 4 événements]
-    L --> M[open-mistral-nemo]
-    M --> N[Réponse française]
-```
+![Pipeline de traitement et de recherche d'événements](pipeline_evenements.png)
 
 L'architecture sépare clairement la phase **offline** de construction de l'index
 et la phase **online** de réponse :
