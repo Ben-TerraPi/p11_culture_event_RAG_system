@@ -9,7 +9,7 @@
 
 Le projet Puls-Events est un prototype de moteur de recherche conversationnel
 consacré aux événements culturels. Son objectif est de permettre à un utilisateur
-de poser une question en français, par exemple « Quel concert est prévu à Brest
+de poser une question en français, par exemple « Quel concert est prévu à Rennes
 en novembre ? », puis d'obtenir une réponse factuelle à partir d'un agenda
 OpenAgenda.
 
@@ -41,14 +41,10 @@ questions, dont 8 avec un événement attendu. Après l'ajout de l'extraction
 automatique des contraintes explicites de ville et de date, le système récupère
 l'identifiant attendu dans **8 cas sur 8**, soit un hit@k de **100 %** sur ce
 sous-ensemble.
-Les tests automatisés sont tous passants (**21/21**).
+Les tests automatisés (pytest) sont tous passants (**21/21**).
 
 Le POC valide donc la faisabilité technique de la chaîne complète, mais ne doit
-pas encore être considéré comme un moteur de recommandation final. Les principaux
-chantiers sont l'amélioration du filtrage structuré (ville, département, date,
-genre), la calibration d'un seuil de confiance, la constitution d'un jeu de
-vérité terrain plus large et la mise en place d'un rafraîchissement contrôlé des
-données.
+pas encore être considéré comme un moteur de recommandation final.
 
 ## 2. Besoin fonctionnel et périmètre
 
@@ -179,10 +175,25 @@ scalaire. Comme les vecteurs sont normalisés, ce produit scalaire est équivale
 - dates de début optionnelles ;
 - dédoublonnage sur `event_id` pour ne garder que le meilleur chunk.
 
+La question de l'utilisateur est vectorisée avec le même modèle
+`mistral-embed` que celui utilisé lors de la construction de l'index. Cette
+cohérence est indispensable : les vecteurs des documents et celui de la
+question doivent appartenir au même espace sémantique pour que la similarité
+cosinus soit interprétable. Le changement de `EMBED_MODEL` impose donc de
+reconstruire l'index FAISS, et pas uniquement de modifier la configuration de
+la recherche.
+
 Au plus quatre événements sont transmis au LLM. Le prompt système impose une
 réponse en français et interdit d'ajouter une date, un lieu, une URL ou un
 événement absent du contexte. Le modèle est configuré avec une température nulle
 pour réduire la variabilité.
+
+Il faut distinguer ce modèle d'embedding du modèle génératif. `mistral-embed`
+sert exclusivement à représenter les chunks et la question pour la recherche
+vectorielle ; `open-mistral-nemo` reçoit ensuite les événements sélectionnés et
+formule la réponse en langage naturel. Le fait que ces deux modèles soient
+fournis par Mistral ne signifie pas qu'ils remplissent le même rôle ni qu'ils
+doivent être interchangeables.
 
 Un mécanisme de repli est prévu en cas de quota Mistral atteint : les champs
 structurés des documents retrouvés sont affichés sans reformulation générative.
@@ -196,10 +207,10 @@ la dégradation du service.
 | Source de données | OpenAgenda API | Source adaptée aux agendas culturels et aux informations de lieu/date |
 | Langage | Python 3.13+ | Écosystème data/IA mature et code court pour un POC |
 | Données tabulaires | pandas + Parquet | Schéma lisible, stockage compact et lecture efficace |
-| Embeddings | Mistral `mistral-embed` | Cohérent avec le fournisseur du chat et adapté au français |
+| Embeddings | Mistral `mistral-embed` | Utilisé à la fois pour indexer les chunks et vectoriser les questions ; adapté à la recherche sémantique en français |
 | Recherche vectorielle | FAISS `IndexFlatIP` | Simple, local, déterministe et suffisant pour quelques milliers de chunks |
 | Orchestration RAG | LangChain | Intégration rapide du prompt, du modèle et du parser |
-| Modèle génératif | `open-mistral-nemo` | Modèle autorisé sur la clé du POC, coût et latence compatibles |
+| Modèle génératif | `open-mistral-nemo` | Modèle séparé des embeddings, autorisé sur la clé du POC, avec un coût et une latence compatibles |
 | Interface | Streamlit (`src/chat.py`) | Interface conversationnelle du POC |
 
 ### 4.1 Pourquoi une recherche vectorielle locale ?
@@ -259,22 +270,61 @@ mesuré par le script est de **8/8 = 100 %**. Les cas négatifs ne sont pas incl
 dans ce calcul car ils n'ont pas d'identifiant attendu ; ils testent cependant
 un comportement essentiel : le refus de fabriquer une réponse.
 
-### 5.3 Robustesse technique
+### 5.3 Robustesse technique - Pytest
 
-La suite automatisée comporte **21 tests passants**. Elle couvre :
+La suite automatisée comporte **21 tests passants**, répartis en trois suites
+complémentaires.
 
-- la fenêtre temporelle et le choix du créneau ;
-- le dédoublonnage et la tolérance aux accents ;
-- le nettoyage HTML ;
-- les tailles de chunks et l'inclusion des métadonnées dans le texte ;
-- l'alignement FAISS/Parquet ;
-- la normalisation des vecteurs ;
-- la recherche d'un vecteur connu ;
-- les erreurs explicites quand l'index est absent ou vide.
+#### 5.3.1 Tests d'intégrité des données vectorielles (`test_vector_data.py`)
 
-Ces tests valident les invariants de la chaîne, mais pas la qualité
-linguistique de toutes les réponses. Une évaluation manuelle ou un jeu annoté
-plus important reste nécessaire avant une mise en production.
+Cette suite comporte **2 tests** et contrôle l'artefact réel produit par le
+pipeline :
+
+- correspondance entre le nombre de vecteurs FAISS et le nombre de lignes du
+  fichier Parquet, avec présence des champs essentiels ;
+- appartenance des événements aux cinq départements autorisés et respect de la
+  fenêtre temporelle calculée à partir de la date de construction de l'index.
+
+Ces contrôles vérifient que l'index et ses métadonnées sont cohérents après une
+reconstruction complète et que les données réellement indexées restent dans le
+périmètre défini par le POC.
+
+#### 5.3.2 Tests unitaires du pipeline (`test_pipeline_units.py`)
+
+Cette suite comporte **11 tests** et vérifie les transformations effectuées
+avant la construction de l'index :
+
+- conservation et marquage des événements futurs ;
+- conservation des événements passés dans la fenêtre historique ;
+- exclusion des événements trop anciens ;
+- sélection du bon créneau lorsqu'un événement en contient plusieurs ;
+- filtrage des départements et tolérance aux accents ;
+- dédoublonnage des événements ;
+- détection des anomalies par le contrôle qualité ;
+- suppression des balises HTML ;
+- respect de la taille maximale des chunks et gestion des textes vides ou
+  courts ;
+- présence du titre, du lieu, de la ville, du département, de la date et du
+  contenu dans le texte destiné à l'embedding.
+
+Ces tests isolent la logique métier de nettoyage et de préparation des données
+à partir d'événements synthétiques, sans dépendre d'un index FAISS existant.
+
+#### 5.3.3 Tests du magasin vectoriel (`test_vector_store.py`)
+
+Cette suite comporte **8 tests**. Elle vérifie d'abord le comportement du
+magasin sur un index synthétique : alignement des vecteurs et des métadonnées,
+absence de la colonne volumineuse `embedding` dans Parquet, classement du chunk
+le plus proche, score et ordre décroissant des résultats, ainsi que les erreurs
+explicites en cas d'index absent ou de données vides. Elle contrôle ensuite
+l'index réel pour confirmer son alignement avec les métadonnées, la normalisation
+des vecteurs pour la similarité cosinus et la capacité à retrouver en première
+position un vecteur déjà présent dans l'index.
+
+Ces trois niveaux de tests valident les invariants techniques de la chaîne,
+mais pas la qualité linguistique de toutes les réponses. Une évaluation
+manuelle ou un jeu annoté plus important reste nécessaire avant une mise en
+production.
 
 ## 6. Analyse des limites et des risques
 
