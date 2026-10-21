@@ -1,0 +1,188 @@
+[
+  {
+    "question": "Quel concert de Schubert est programmé prochainement à Rennes ?",
+    "expected_answer": "[CONCERT] Schubert aura lieu le 20 novembre 2026 à 20 h à l'Opéra de Rennes.",
+    "expected_event_ids": [
+      "608222"
+    ],
+    "notes": "Réponse positive ciblée : vérifier le titre, la date, l'heure et le lieu dans agendas.parquet.",
+    "answer": "Voici le concert de Schubert programmé prochainement à Rennes :\n\n**Titre :** [CONCERT] Schubert\n**Date :** 20 novembre 2026 à 20h00\n**Lieu :** Opéra de Rennes\n**URL :** [Réservation](https://openagenda.com/cmi-rennes/events/608222_concert-schubert-8159977)\n\n*Programme : Symphonies n°5 et 8 et extraits choisis de Franz Schubert.*",
+    "retrieved_event_ids": [
+      "608222",
+      "31603055",
+      "91607946",
+      "78438936"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Je cherche un concert de musique techno dans le Finistère.",
+    "expected_answer": "Aucun événement correspondant à un concert de musique techno n'est actuellement annoté dans le Finistère.",
+    "expected_event_ids": [],
+    "notes": "Cas négatif : ne pas proposer un événement d'un autre genre ou d'un autre département et ne rien inventer.",
+    "answer": "Aucun événement de musique techno n'est listé dans le contexte pour le Finistère. Je ne peux donc pas vous proposer de recommandation.",
+    "retrieved_event_ids": [
+      "95168539",
+      "14551870",
+      "49512099",
+      "18323167"
+    ],
+    "hit": null
+  },
+  {
+    "question": "Quels concerts de « Bach in the Days » sont prévus dans le Morbihan ?",
+    "expected_answer": "Trois représentations sont prévues dans le Morbihan : le 19 septembre 2026 à 16 h à la chapelle du Croisty à Port Navalo, le 19 septembre 2026 à 19 h à la JEP 2026 - Rue de la Palisse à Arzon, et le 20 septembre 2026 à 16 h à la chapelle Saint-Nicolas de Kerners à Arzon.",
+    "expected_event_ids": [
+      "93533348",
+      "23070385",
+      "43733351"
+    ],
+    "notes": "Question multi-résultats : vérifier que les trois dates, villes et lieux sont distingués.",
+    "answer": "Aucun événement lié à **\"Bach in the Days\"** n'est prévu dans le Morbihan selon le contexte fourni. Seuls les événements suivants sont disponibles :\n\n1. **Concert du Petit-Fers**\n   - **Date** : 2026-10-17 à 19:30\n   - **Lieu** : 5 Rue Alain le Grand, Vannes (56)\n   - **URL** : [Concert du Petit-Fers](https://openagenda.com/agendatrad/events/92381392_concert-du-petit-fers)",
+    "retrieved_event_ids": [
+      "39688698",
+      "92381392",
+      "74204854",
+      "43363431"
+    ],
+    "hit": false
+  },
+  {
+    "question": "Y a-t-il un concert prochain à Rezé, en Loire-Atlantique ?",
+    "expected_answer": "Oui. « Concert : Lagrimas + Kompost + Crovercops » est prévu le 5 novembre 2026 à 20 h au Cold Crash - Brasserie nautile à Rezé.",
+    "expected_event_ids": [
+      "66020256"
+    ],
+    "notes": "Réponse positive avec contrainte de ville, de département et d'événement à venir.",
+    "answer": "Oui, voici le seul concert prochain à **Rezé** dans votre contexte :\n\n**Le K – Chorale associée à la Soufflerie**\n- **Date** : 10 mai 2027 à 20h00\n- **Lieu** : L'Auditorium (Rezé)\n- **URL** : [https://openagenda.com/la-soufflerie-reze/events/71410414_le-k-chorale-associee-a-la-soufflerie](https://openagenda.com/la-soufflerie-reze/events/71410414_le-k-chorale-associee-a-la-soufflerie)\n\n*(Aucun autre événement n'est prévu à Rezé avant cette date.)*",
+    "retrieved_event_ids": [
+      "71410414",
+      "61040240",
+      "96934810",
+      "25737299"
+    ],
+    "hit": false
+  },
+  {
+    "question": "Quel concert est prévu prochainement à Saint-André-des-Eaux, dans les Côtes-d'Armor ?",
+    "expected_answer": "« Concert de Maracujah » est prévu le 24 octobre 2026 à 20 h à L'Éprouvette, à Saint-André-des-Eaux.",
+    "expected_event_ids": [
+      "34829203"
+    ],
+    "notes": "Vérifier la ville, le département, le statut à venir et le lieu.",
+    "answer": "Voici le concert prochainement prévu à **Saint-André-des-Eaux** :\n\n**Concert de Maracujah**\n- **Date** : 2026-10-24 à 20h00\n- **Lieu** : L'Éprouvette\n- **URL** : [Maracujah - L'Éprouvette](https://openagenda.com/leprouvette/events/34829203_concert-de-maracujah-2830539)",
+    "retrieved_event_ids": [
+      "34829203",
+      "73259572",
+      "70672366",
+      "10818884"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Quand et où peut-on voir Danakil dans le Finistère ?",
+    "expected_answer": "Danakil se produira le 5 décembre 2026 à 20 h 30 au Roudour - Pôle Culturel, à Saint-Martin-des-Champs.",
+    "expected_event_ids": [
+      "43888959"
+    ],
+    "notes": "Réponse positive ciblée par artiste et département ; reprendre les informations de l'événement sans les compléter.",
+    "answer": "D'après le contexte fourni, **Danakil ne se produit pas dans le Finistère** en 2026 ou dans les années suivantes. Leur seul événement répertorié a lieu à **Saint-Martin-des-Champs (Seine-et-Marne)** le **5 décembre 2026** au **Roudour**.",
+    "retrieved_event_ids": [
+      "43888959",
+      "12979355",
+      "25993653",
+      "60019433"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Quels événements culturels sont proposés à Paris ?",
+    "expected_answer": "Je ne trouve pas d'événement correspondant dans le périmètre géographique couvert par cet agenda.",
+    "expected_event_ids": [],
+    "notes": "Cas hors périmètre : le chatbot doit refuser poliment plutôt que suggérer des événements non présents dans l'index.",
+    "answer": "Aucun événement culturel listé dans le contexte ne se déroule à Paris. Les événements mentionnés ont lieu à **Pénestin** et **Nantes**.",
+    "retrieved_event_ids": [
+      "76233824",
+      "18323167",
+      "19806251",
+      "9063210"
+    ],
+    "hit": null
+  },
+  {
+    "question": "Quand et où est programmé le concert de Rachmaninov à Rennes ?",
+    "expected_answer": "« [CONCERT] Rachmaninov » est programmé le 17 décembre 2026 à 20 h au Couvent des Jacobins - Centre des congrès à Rennes.",
+    "expected_event_ids": [
+      "31603055"
+    ],
+    "notes": "Vérifier le titre, la date, l'heure, la ville et le lieu.",
+    "answer": "Le concert de Rachmaninov est programmé le **17 décembre 2026 à 20h00** au **Couvent des Jacobins - Centre des congrès** à Rennes.\n\n🔗 [Plus d'infos et réservation](https://openagenda.com/cmi-rennes/events/31603055_concert-rachmaninov)",
+    "retrieved_event_ids": [
+      "31603055",
+      "608222",
+      "60622162",
+      "45908928"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Quel concert est prévu à Brest dans le Finistère en novembre 2026 ?",
+    "expected_answer": "« Bélozidé en concert » est prévu le 26 novembre 2026 à 20 h 30 à l'Espace Vauban, à Brest.",
+    "expected_event_ids": [
+      "50910974"
+    ],
+    "notes": "Question avec contraintes de ville, de département et de mois ; vérifier que l'événement est à venir.",
+    "answer": "Voici le concert prévu à Brest en novembre 2026 :\n\n**Titre** : Bélozidé en concert\n**Date** : 2026-11-26 à 20h30\n**Lieu** : Espace Vauban, Brest (Finistère)\n**URL** : [https://openagenda.com/mon-petit-ponant/events/50910974_belozide-en-concert](https://openagenda.com/mon-petit-ponant/events/50910974_belozide-en-concert)",
+    "retrieved_event_ids": [
+      "50910974",
+      "35859094",
+      "14551870",
+      "82856582"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Quels artistes sont annoncés pour le concert à Grand-Champ dans le Morbihan le 24 octobre 2026 ?",
+    "expected_answer": "Le concert annoncé à Grand-Champ le 24 octobre 2026 réunit Bertrand Belin et Louïse Papier. Il est prévu à 20 h au lieu indiqué comme « Grand-Champ ».",
+    "expected_event_ids": [
+      "54267156"
+    ],
+    "notes": "Tester l'extraction de plusieurs artistes depuis le titre et la restitution fidèle du lieu enregistré.",
+    "answer": "Pour le concert à **Grand-Champ** le **24 octobre 2026**, les artistes annoncés sont :\n\n- **Bertrand Belin** (avec une première partie par **Louïse Papier**).\n- **URL** : [Bertrand Belin + Louïse Papier](https://openagenda.com/shotgun/events/54267156_bertrand-belin-louise-papier-5065147)",
+    "retrieved_event_ids": [
+      "54267156",
+      "82856582",
+      "92381392",
+      "87162586"
+    ],
+    "hit": true
+  },
+  {
+    "question": "Quel concert de Beyoncé est prévu à Nantes en 2026 ?",
+    "expected_answer": "Aucun concert de Beyoncé à Nantes en 2026 n'est présent dans l'agenda indexé.",
+    "expected_event_ids": [],
+    "notes": "Cas négatif volontaire : ne pas inventer de date, de lieu ou de billetterie pour un artiste absent des données.",
+    "answer": "Aucun concert de Beyoncé n'est prévu à Nantes en 2026 dans le contexte fourni.",
+    "retrieved_event_ids": [
+      "53294195",
+      "7480984",
+      "20243371",
+      "1621043"
+    ],
+    "hit": null
+  },
+  {
+    "question": "Quels festivals sont programmés en mars 2030 en Bretagne ?",
+    "expected_answer": "Aucun événement n'est présent pour mars 2030 dans les données de l'agenda.",
+    "expected_event_ids": [],
+    "notes": "Cas négatif temporel : la période demandée est hors des dates couvertes par le jeu de données.",
+    "answer": "Aucun événement en mars 2030 n'est listé dans le contexte fourni. Je ne peux donc pas vous proposer de festivals pour cette période.",
+    "retrieved_event_ids": [
+      "47932755",
+      "82856582",
+      "60019433",
+      "60596176"
+    ],
+    "hit": null
+  }
+]

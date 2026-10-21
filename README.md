@@ -97,6 +97,8 @@ La collecte couvre les cinq départements définis dans `src/config.py` (Côtes-
 
 Le palier gratuit est limité en requêtes par seconde et en tokens. Les appels sont donc espacés et réessayés avec un délai croissant en cas de 429 ou d'erreur serveur (`src/api_utils.py`). Les embeddings sont envoyés par petits lots (`EMBED_BATCH`) pour rester sous la limite de tokens par requête. Avec ce palier, la reconstruction complète prend quelques minutes.
 
+Une erreur 429 ou 403 peut aussi signaler un modèle de chat non autorisé pour votre clé (limite à 0 requête par minute) : changez alors `MISTRAL_CHAT_MODEL` dans `src/config.py`. Si la limite est atteinte pendant une conversation, le chatbot affiche les événements retrouvés, sans reformulation.
+
 ## Exécution du chatbot
 
 Après reconstruction de l'index, lancer l'interface conversationnelle :
@@ -106,7 +108,7 @@ python src/chat.py                 # événements à venir uniquement
 python src/chat.py --include-past  # inclut aussi les événements passés
 ```
 
-Le chatbot recherche les chunks pertinents dans FAISS, ne garde qu'un extrait par événement au-dessus d'un seuil de pertinence (`MIN_SCORE`), transmet ce contexte au modèle Mistral via LangChain et répond en français. Il doit rester factuel, ne pas inventer d'événement et indiquer lorsqu'aucun résultat fiable n'est disponible. L'historique n'est pas utilisé dans ce POC.
+Le chatbot recherche les chunks pertinents dans FAISS, ne garde qu'un extrait par événement au-dessus d'un seuil de pertinence grossier (`MIN_SCORE`), transmet ce contexte au modèle Mistral via LangChain et répond en français. Il doit rester factuel, ne pas inventer d'événement et indiquer lorsqu'aucun résultat fiable n'est disponible. L'historique n'est pas utilisé dans ce POC.
 
 Une utilisation programmatique suit le même principe. Depuis la racine du projet, rendre `src` accessible dans `PYTHONPATH` avant l'import :
 
@@ -126,13 +128,13 @@ print(answer("Un concert ?", city="Brest", date_from="2026-11-01", date_to="2026
 
 ## Évaluation
 
-Le fichier `data/evaluation/questions.jsonl` contient les questions du jeu d'évaluation. Chaque ligne comporte `question`, `expected_answer`, `expected_event_ids` et `notes`. Les réponses annotées et les identifiants d'événements doivent être complétés après une reconstruction de l'index, car les événements collectés peuvent changer (identifiants à relever dans `data/clean/agendas.parquet`). Les questions dont `expected_answer` est vide sont ignorées. Prévoir aussi des questions sans réponse possible, pour vérifier que le chatbot refuse de répondre.
+Le fichier `data/evaluation/questions.jsonl` contient les questions du jeu d'évaluation. Chaque ligne comporte `question`, `expected_answer`, `expected_event_ids` et `notes`. Les réponses annotées et les identifiants d'événements doivent être vérifiés après une reconstruction de l'index, car les événements collectés peuvent changer (identifiants à relever dans `data/clean/agendas.parquet`). Le jeu contient aussi des questions sans réponse possible (hors périmètre ou hors sujet), pour vérifier que le chatbot refuse de répondre.
 
 ```bash
-python src/evaluate.py
+python src/evaluate.py --upcoming-only
 ```
 
-L'évaluation porte sur la pertinence des événements retrouvés (hit@k), ainsi que sur l'exactitude des dates, lieux et URL et l'absence d'informations inventées, via une note de 0 à 2 attribuée par un modèle Mistral qui compare la réponse à `expected_answer`. Les résultats détaillés sont écrits dans `data/evaluation/results.json`. Ils servent aussi à calibrer `MIN_SCORE`.
+Pour chaque question, le script affiche la réponse attendue et la réponse du chatbot, à comparer à la main (exactitude des dates, lieux et URL, absence d'informations inventées), et calcule le **hit@k** : l'un des événements attendus fait-il partie des événements récupérés ? Les résultats détaillés sont écrits dans `data/evaluation/results.json`. Un juge automatique (LLM) n'a pas été retenu : le modèle de chat disponible sur le palier utilisé s'est montré trop approximatif pour noter.
 
 ## Tests
 
@@ -150,5 +152,6 @@ Les tests qui lisent la base sont ignorés avec un message explicite si l'index 
 
 ## Limites connues
 
+- Les scores de `mistral-embed` sont serrés (0.70 à 0.78 observés, pertinents ou non) : le refus des questions hors sujet repose sur le LLM et non sur un seuil de score.
 - Les filtres par lieu et par période existent dans `rag.retrieve` mais ne sont pas déduits automatiquement de la question en langage naturel.
 - L'index est exhaustif (`IndexFlatIP`) : adapté à quelques milliers de chunks ; au-delà, passer à un index approximatif.
