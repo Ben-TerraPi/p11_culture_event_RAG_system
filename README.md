@@ -1,3 +1,11 @@
+## Context
+
+Ce projet a été réalisé dans le cadre du parcours de formation Data Engineer d'OpenClassrooms.
+
+Titre du projet :
+
+**Concevez et déployez un système RAG**
+
 # Puls-Events - POC RAG
 
 Ce projet collecte des événements culturels OpenAgenda, les nettoie, les vectorise avec `mistral-embed`, puis les indexe dans FAISS. La couche RAG LangChain utilise cet index pour fournir des recommandations avec un modèle de chat Mistral.
