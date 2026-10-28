@@ -279,7 +279,9 @@ src/
 └── vector_store.py
 
 tests/
-└── test_vector_data.py
+├── test_pipeline_units.py
+├── test_vector_data.py
+└── test_vector_store.py
 ```
 
 Ces fichiers sont des artefacts générés. Ils peuvent être recréés en relançant le pipeline, mais leur production nécessite des appels aux API OpenAgenda et Mistral.
