@@ -54,7 +54,8 @@ OPENAGENDA_KEY="votre_cle_openagenda"
 ├── data/
 │   ├── raw/  clean/  vector_store/              # sorties (ignorées par Git)
 │   └── evaluation/
-│       └── questions.jsonl         # jeu de questions annoté
+│       ├── questions.jsonl         # jeu de questions annoté
+│       └── results.json            # résultat du sript d'évaluation du hit@k
 ├── src/
 │   ├── api_utils.py                # cadence des appels + réessais sur 429/5xx
 │   ├── chat.py                     # interface chatbot Streamlit
