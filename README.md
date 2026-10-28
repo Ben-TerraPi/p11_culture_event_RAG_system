@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 4. **Configurer les clé API**
 
-Créez un fichier `.env` à la racine du projet avec le contenu suivant :
+Créez un fichier `.env` à la racine du projet en reprenant l'exemple :
 
 ```
 MISTRAL_API_KEY="votre_cle_mistral"
